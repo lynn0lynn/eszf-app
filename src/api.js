@@ -1,8 +1,8 @@
 // API 客户端 — 对接 eszf.com.cn 后端
 import { storage } from './storage';
 
-// 实际部署时改成你的域名
 const BASE_URL = 'https://eszf.com.cn/api';
+const TIMEOUT = 15000; // 15秒超时
 
 async function request(method, path, body = null, auth = false) {
   const headers = { 'Content-Type': 'application/json' };
@@ -13,17 +13,29 @@ async function request(method, path, body = null, auth = false) {
   const opts = { method, headers };
   if (body) opts.body = JSON.stringify(body);
 
-  const res = await fetch(`${BASE_URL}${path}`, opts);
-  const data = await res.json();
+  // 用 AbortController 实现超时
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), TIMEOUT);
+  opts.signal = controller.signal;
 
-  if (!res.ok) {
-    const msg = data.error || data.message || `请求失败(${res.status})`;
-    throw new Error(msg);
+  try {
+    const res = await fetch(`${BASE_URL}${path}`, opts);
+    clearTimeout(timeout);
+    const data = await res.json();
+    if (!res.ok) {
+      const msg = data.error || data.message || `请求失败(${res.status})`;
+      throw new Error(msg);
+    }
+    return data;
+  } catch (e) {
+    clearTimeout(timeout);
+    if (e.name === 'AbortError') {
+      throw new Error('请求超时，请检查网络连接');
+    }
+    throw e;
   }
-  return data;
 }
 
-// 已验证的接口
 export const api = {
   // 认证
   login: (username, password) =>

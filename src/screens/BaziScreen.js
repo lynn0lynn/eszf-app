@@ -93,8 +93,15 @@ export default function BaziScreen({ navigation }) {
     setFollowUpResult(null);
     try {
       const coords = PROVINCE_COORDS[province] || [116.4, 39.9];
-      // 先获取日期
-      const dateObj = new Date(birthDate + 'T' + String(parseInt(hour) || 12).padStart(2,'0') + ':' + String(parseInt(minute) || 0).padStart(2,'0') + ':00');
+      // 解析日期，防异常
+      const hh = String(Math.min(Math.max(parseInt(hour) || 12, 0), 23)).padStart(2,'0');
+      const mm = String(Math.min(Math.max(parseInt(minute) || 0, 0), 59)).padStart(2,'0');
+      const dateObj = new Date(birthDate + 'T' + hh + ':' + mm + ':00');
+      if (isNaN(dateObj.getTime())) {
+        alert('日期格式有误，请使用 YYYY-MM-DD 格式');
+        setLoading(false);
+        return;
+      }
       const data = await api.calcBazi(dateObj.toISOString(), coords[0], coords[1], gender, name || '来访者');
       setBaziData(data);
 
