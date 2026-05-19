@@ -325,18 +325,45 @@ export default function BaziScreen({ navigation }) {
                 </View>
               ) : null}
 
-              {/* 大运 */}
-              {baziData.currentDaYun && baziData.currentDaYun.length > 0 ? (
+              {/* 本命十神 */}
+              {baziData.shiShen ? (
                 <View style={styles.infoCard}>
-                  <Text style={styles.infoTitle}>🔄 当前大运</Text>
-                  <View style={styles.dayunRow}>
-                    {baziData.currentDaYun.slice(0, 6).map((dy, i) => (
-                      <View key={i} style={styles.dayunItem}>
-                        <Text style={styles.dayunGz}>{dy.ganZhi || '--'}</Text>
-                        <Text style={styles.dayunAge}>{dy.fromAge}~{dy.toAge}岁</Text>
-                      </View>
-                    ))}
+                  <Text style={styles.infoTitle}>📊 本命十神</Text>
+                  <View style={styles.shishenGrid}>
+                    {[['年', baziData.shiShen.year], ['月', baziData.shiShen.month], ['日', baziData.shiShen.day], ['时', baziData.shiShen.hour]].map(([label, ss], i) => {
+                      const colorMap = {
+                        '正官': '#4ade80', '七杀': '#f87171',
+                        '正印': '#60a5fa', '偏印': '#818cf8',
+                        '正财': '#fbbf24', '偏财': '#f59e0b',
+                        '食神': '#34d399', '伤官': '#fb923c',
+                        '劫财': '#c084fc', '比肩': '#a78bfa',
+                        '日主': '#667eea',
+                      };
+                      const ssColor = colorMap[ss] || colors.text;
+                      return (
+                        <View key={label} style={styles.shishenItem}>
+                          <Text style={styles.shishenLabel}>{label}柱</Text>
+                          <Text style={[styles.shishenValue, { color: ssColor }]}>{ss}</Text>
+                        </View>
+                      );
+                    })}
                   </View>
+                  {/* 地支藏干十神 */}
+                  {baziData.cangGanShiShen ? (
+                    <View style={styles.cangganBox}>
+                      <Text style={styles.cangganTitle}>藏干十神</Text>
+                      <View style={styles.cangganRow}>
+                        {Object.entries(baziData.cangGanShiShen).map(([pillar, gans]) => (
+                          <View key={pillar} style={styles.cangganPillar}>
+                            <Text style={styles.cangganPillarLabel}>{pillar}</Text>
+                            {gans.map((g, i) => (
+                              <Text key={i} style={styles.cangganText}>{g.gan}{g.shiShen}</Text>
+                            ))}
+                          </View>
+                        ))}
+                      </View>
+                    </View>
+                  ) : null}
                 </View>
               ) : null}
 
@@ -430,6 +457,16 @@ const styles = StyleSheet.create({
   infoTitle: { fontSize: 14, fontWeight: '600', color: colors.text, marginBottom: 6 },
   infoContent: { fontSize: 14, color: colors.textDim, lineHeight: 22 },
   infoContentSmall: { fontSize: 12, color: colors.textMuted, marginTop: 4 },
+  shishenGrid: { flexDirection: 'row', justifyContent: 'space-around', paddingVertical: 8 },
+  shishenItem: { alignItems: 'center', minWidth: 60 },
+  shishenLabel: { fontSize: 11, color: colors.textMuted, marginBottom: 4 },
+  shishenValue: { fontSize: 18, fontWeight: '700' },
+  cangganBox: { borderTopWidth: 1, borderTopColor: colors.border, marginTop: 8, paddingTop: 8 },
+  cangganTitle: { fontSize: 11, color: colors.textMuted, marginBottom: 6 },
+  cangganRow: { flexDirection: 'row', justifyContent: 'space-around' },
+  cangganPillar: { alignItems: 'center', minWidth: 60 },
+  cangganPillarLabel: { fontSize: 10, color: colors.textMuted, marginBottom: 2 },
+  cangganText: { fontSize: 11, color: colors.textDim, lineHeight: 16 },
   dayunRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   dayunItem: { alignItems: 'center', minWidth: 60, padding: 6, borderRadius: 8, backgroundColor: colors.inputBg },
   dayunGz: { fontSize: 14, fontWeight: '600', color: colors.accent },
