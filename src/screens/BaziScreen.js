@@ -12,22 +12,24 @@ import WuWenGrid from '../components/WuWenGrid';
 import AiResultBlock from '../components/AiResultBlock';
 import LoadingModal from '../components/LoadingModal';
 import DatePickerModal from '../components/DatePickerModal';
+import CityPickerModal from '../components/CityPickerModal';
+import { PROVINCE_CITIES } from '../data/cityData';
 
-// 省份城市经纬度简化数据（仅省级城市）
-const PROVINCES = [
-  '北京市', '上海市', '广州市', '深圳市', '成都市', '杭州市', '武汉市',
-  '南京市', '重庆市', '天津市', '苏州市', '长沙市', '西安市', '郑州市',
-  '青岛市', '沈阳市', '宁波市', '昆明市', '大连市', '厦门市',
-];
-const PROVINCE_COORDS = {
-  '北京市': [116.4, 39.9], '上海市': [121.5, 31.2], '广州市': [113.3, 23.1],
-  '深圳市': [114.1, 22.5], '成都市': [104.1, 30.6], '杭州市': [120.2, 30.3],
-  '武汉市': [114.3, 30.6], '南京市': [118.8, 32.1], '重庆市': [106.5, 29.6],
-  '天津市': [117.2, 39.1], '苏州市': [120.6, 31.3], '长沙市': [113.0, 28.2],
-  '西安市': [108.9, 34.3], '郑州市': [113.7, 34.8], '青岛市': [120.4, 36.1],
-  '沈阳市': [123.4, 41.8], '宁波市': [121.5, 29.9], '昆明市': [102.7, 25.0],
-  '大连市': [121.6, 38.9], '厦门市': [118.1, 24.5],
-};
+// 快速获取省会/直辖市坐标
+function getCoords(province, city) {
+  if (!province) return [116.4, 39.9]; // default Beijing
+  const cities = PROVINCE_CITIES[province];
+  if (!cities || cities.length === 0) return [116.4, 39.9];
+  // If city provided, use its coords
+  if (city) {
+    const matched = cities.find(c => c.name === city);
+    if (matched && (matched.lat || matched.lng)) return [matched.lng, matched.lat];
+  }
+  // Fallback to first city in the province
+  const first = cities[0];
+  if (first && (first.lat || first.lng)) return [first.lng, first.lat];
+  return [116.4, 39.9];
+}
 
 function getToday() {
   const d = new Date();
@@ -64,8 +66,10 @@ export default function BaziScreen({ navigation }) {
   const [birthDate, setBirthDate] = useState(getToday());
   const [hour, setHour] = useState('12');
   const [minute, setMinute] = useState('0');
-  const [province, setProvince] = useState('北京市');
+  const [province, setProvince] = useState('北京');
+  const [city, setCity] = useState('北京市');
   const [showDatePicker, setShowDatePicker] = useState(false);
+  const [showCityPicker, setShowCityPicker] = useState(false);
 
   const [loading, setLoading] = useState(false);
   const [loadText, setLoadText] = useState('');
@@ -82,6 +86,7 @@ export default function BaziScreen({ navigation }) {
   const [dailyTipLoading, setDailyTipLoading] = useState(false);
   const [monthlyTip, setMonthlyTip] = useState(null);
   const [yearlyTip, setYearlyTip] = useState(null);
+  const [pendingWuWen, setPendingWuWen] = useState(null); // {type, label, icon}
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const scrollRef = useRef(null);
   const followUpRef = useRef(null);
@@ -109,7 +114,7 @@ export default function BaziScreen({ navigation }) {
     setAiResult(null);
     setFollowUpResult(null);
     try {
-      const coords = PROVINCE_COORDS[province] || [116.4, 39.9];
+      const coords = getCoords(province, city);
       const hh = String(Math.min(Math.max(parseInt(hour) || 12, 0), 23)).padStart(2,'0');
       const mm = String(Math.min(Math.max(parseInt(minute) || 0, 0), 59)).padStart(2,'0');
       const dateObj = new Date(birthDate + 'T' + hh + ':' + mm + ':00');
@@ -155,7 +160,7 @@ export default function BaziScreen({ navigation }) {
     })();
   }, [baziData, isLoggedIn]);
 
-  // 五问
+  // 五问：第一步 → 展示流运信息 + AI确认按钮
   async function handleWuWen(type) {
     if (!isLoggedIn) {
       alert('请先登录后使用AI分析');
@@ -170,7 +175,7 @@ export default function BaziScreen({ navigation }) {
       return;
     }
 
-    // 检查是否有剩余次数
+    // 检查配额
     if (quota) {
       const hasFree = (quota.remainingFree || 0) > 0;
       const hasPaid = (quota.paidQuestions || 0) > 0;
@@ -181,16 +186,35 @@ export default function BaziScreen({ navigation }) {
       }
     }
 
-    setLoading(true);
-    setLoadText('正在请求AI分析...');
+    const labels = {
+      health: { label: '健康养生', icon: '🏥', color: '#4ade80' },
+      career: { label: '事业学业', icon: '💼', color: '#667eea' },
+      marriage: { label: '婚姻感情', icon: '💑', color: '#f472b6' },
+      children: { label: '六亲眷属', icon: '👨‍👩‍👧‍👦', color: '#f0a040' },
+      decision: { label: '亨通聚富', icon: '💰', color: '#ffd700' },
+    };
+
+    // 设置待确认状态 → 显示流运信息 + AI按钮（不直接调API）
+    setPendingWuWen({ type, ...labels[type] });
     setAiResult(null);
     setFollowUpResult(null);
+    setFreeAskResult(null);
+    setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 300);
+  }
+
+  // 五问：第二步 → 用户点击"AI深度解读"后真正调API
+  async function handleConfirmAi() {
+    if (!pendingWuWen) return;
+    const type = pendingWuWen.type;
+
+    setPendingWuWen(null); // 隐藏确认区
+    setLoading(true);
+    setLoadText('正在请求AI深度解读...');
 
     try {
       const data = await api.aiAsk(baziData, type, '');
       setAiResult(data.result);
-      const labels = { health: '健康养生', career: '事业学业', marriage: '婚姻感情', children: '六亲眷属', decision: '亨通聚富', advice: '抉择建议' };
-      setAiTitle('🤖 ' + (labels[type] || type) + ' · AI深度解读');
+      setAiTitle('🤖 ' + pendingWuWen.label + ' · AI深度解读');
       // 刷新配额
       if (isLoggedIn) {
         try { const q = await api.getQuota(getBaziId(baziData)); setQuota(q); } catch (e) {}
@@ -365,15 +389,12 @@ export default function BaziScreen({ navigation }) {
             </View>
 
             <Text style={styles.label}>出生地点</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.provinceScroll}>
-              {PROVINCES.map(p => (
-                <TouchableOpacity key={p}
-                  style={[styles.provinceBtn, province === p && styles.provinceActive]}
-                  onPress={() => setProvince(p)}>
-                  <Text style={[styles.provinceText, province === p && styles.provinceTextActive]}>{p}</Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
+            <TouchableOpacity style={styles.cityBtn} onPress={() => setShowCityPicker(true)}>
+              <Text style={styles.cityBtnText}>
+                {province}{city ? ' · ' + city.replace('市','') : ''}
+              </Text>
+              <Text style={styles.cityBtnIcon}>📍</Text>
+            </TouchableOpacity>
 
             <TouchableOpacity style={styles.calcBtn} onPress={handleCalc} disabled={loading}>
               <Text style={styles.calcBtnText}>🔮 开始排盘</Text>
@@ -513,6 +534,46 @@ export default function BaziScreen({ navigation }) {
                 )}
               </View>
 
+              {/* 待确认 → 流运信息 + AI按钮 */}
+              {pendingWuWen ? (
+                <View style={styles.confirmCard}>
+                  {/* 流运信息（本地免费展示） */}
+                  <View style={styles.flowInfo}>
+                    <Text style={styles.flowTitle}>📍 流运信息 · {pendingWuWen.label}</Text>
+                    <Text style={styles.flowDate}>{new Date().toLocaleDateString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric' })}</Text>
+                  </View>
+                  <View style={styles.flowBody}>
+                    <Text style={styles.flowPillars}>
+                      本命：{baziData.yearPillar?.ganZhi || '--'} {baziData.monthPillar?.ganZhi || '--'} {baziData.dayPillar?.ganZhi || '--'} {baziData.hourPillar?.ganZhi || '--'}
+                    </Text>
+                    {baziData.wxStats?.dayWx ? (
+                      <Text style={styles.flowDetail}>
+                        日主{baziData.wxStats.dayWx}{baziData.wxStats.isStrong ? '偏旺' : '偏弱'}
+                        {baziData.wxStats.maxWx ? ` · 喜${baziData.wxStats.maxWx} 忌${baziData.wxStats.minWx}` : ''}
+                      </Text>
+                    ) : null}
+                    {baziData.shiShen?.day ? (
+                      <Text style={styles.flowDetail}>日主十神：{baziData.shiShen.day}</Text>
+                    ) : null}
+                  </View>
+
+                  {/* AI确认触发按钮 */}
+                  <View style={styles.confirmTrigger}>
+                    <Text style={styles.confirmLabel}>💡 以上为本地基础流运信息。点击下方按钮获取 AI 深度解读：</Text>
+                    <TouchableOpacity style={styles.confirmBtn} onPress={handleConfirmAi} disabled={loading}>
+                      <Text style={styles.confirmBtnIcon}>{pendingWuWen.icon}</Text>
+                      <Text style={styles.confirmBtnText}>🤖 AI深度解读{pendingWuWen.label}</Text>
+                    </TouchableOpacity>
+                    <Text style={styles.confirmQuota}>
+                      配额：🆓 {quota?.remainingFree || 0}次 · 📦 {quota?.paidQuestions || 0}次 · ⚡ {((quota?.tokenBalance || 0) / 10000).toFixed(1)}
+                    </Text>
+                    <TouchableOpacity onPress={() => setPendingWuWen(null)}>
+                      <Text style={styles.confirmCancel}>取消</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              ) : null}
+
               {/* AI结果 */}
               {aiResult ? (
                 <AiResultBlock result={aiResult} title={aiTitle} />
@@ -574,6 +635,17 @@ export default function BaziScreen({ navigation }) {
         onConfirm={setBirthDate}
         initialDate={birthDate}
       />
+      <CityPickerModal
+        visible={showCityPicker}
+        onClose={() => setShowCityPicker(false)}
+        onSelect={(loc) => {
+          setProvince(loc.province);
+          setCity(loc.city);
+          setShowCityPicker(false);
+        }}
+        initialProvince={province}
+        initialCity={city}
+      />
     </>
   );
 }
@@ -603,12 +675,14 @@ const styles = StyleSheet.create({
   genderActive: { borderColor: colors.primary, backgroundColor: colors.primary + '20' },
   genderText: { fontSize: 14, color: colors.textDim },
   genderTextActive: { color: colors.primary, fontWeight: '600' },
-  provinceScroll: { marginTop: 4, marginBottom: 4 },
-  provinceBtn: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 16, borderWidth: 1, borderColor: colors.border, marginRight: 8 },
-  provinceActive: { borderColor: colors.primary, backgroundColor: colors.primary + '20' },
-  provinceText: { fontSize: 13, color: colors.textDim },
-  provinceTextActive: { color: colors.primary, fontWeight: '600' },
-  calcBtn: { backgroundColor: colors.primary, borderRadius: 12, padding: 14, alignItems: 'center', marginTop: 16 },
+  cityBtn: {
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+    backgroundColor: colors.inputBg, borderRadius: 10, padding: 10,
+    borderWidth: 1, borderColor: colors.border, marginTop: 2,
+  },
+  cityBtnText: { fontSize: 14, color: colors.text },
+  cityBtnIcon: { fontSize: 16 },
+  calcBtn: { backgroundColor: colors.primary, borderRadius: 12, padding: 14, alignItems: 'center', marginTop: 12 },
   calcBtnText: { color: '#fff', fontSize: 16, fontWeight: '600' },
   infoCard: { backgroundColor: colors.card, borderRadius: 12, padding: 14, borderWidth: 1, borderColor: colors.border, marginBottom: 12 },
   infoTitle: { fontSize: 14, fontWeight: '600', color: colors.text, marginBottom: 6 },
@@ -652,6 +726,28 @@ const styles = StyleSheet.create({
   tipBtnAccentText: { color: colors.primary },
   tipDetail: { marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: colors.border },
   tipDetailTitle: { fontSize: 14, fontWeight: '600', color: colors.text, marginBottom: 6 },
+  // 五问确认卡（流运信息+AI按钮）
+  confirmCard: {
+    backgroundColor: colors.card, borderRadius: 16, padding: 16,
+    borderWidth: 1, borderColor: colors.primary + '44', marginBottom: 12,
+  },
+  flowInfo: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
+  flowTitle: { fontSize: 15, fontWeight: '700', color: colors.primary },
+  flowDate: { fontSize: 11, color: colors.textMuted },
+  flowBody: { backgroundColor: colors.inputBg, borderRadius: 10, padding: 12, marginBottom: 12 },
+  flowPillars: { fontSize: 13, color: colors.text, lineHeight: 20 },
+  flowDetail: { fontSize: 12, color: colors.textDim, marginTop: 4 },
+  confirmTrigger: { alignItems: 'center', borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 12 },
+  confirmLabel: { fontSize: 12, color: colors.textDim, textAlign: 'center', marginBottom: 10, lineHeight: 16 },
+  confirmBtn: {
+    flexDirection: 'row', backgroundColor: colors.primary, borderRadius: 14,
+    paddingVertical: 14, paddingHorizontal: 24, alignItems: 'center', justifyContent: 'center',
+    width: '100%',
+  },
+  confirmBtnIcon: { fontSize: 20, marginRight: 6 },
+  confirmBtnText: { color: '#fff', fontSize: 15, fontWeight: '700' },
+  confirmQuota: { fontSize: 11, color: colors.textMuted, marginTop: 8 },
+  confirmCancel: { fontSize: 12, color: colors.textDim, marginTop: 10, textDecorationLine: 'underline' },
 });
 
 const freeModalStyles = StyleSheet.create({
