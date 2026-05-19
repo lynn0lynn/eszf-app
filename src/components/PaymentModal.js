@@ -18,26 +18,37 @@ const PACKAGES = {
 export default function PaymentModal({ visible, onClose, onSuccess }) {
   const [tab, setTab] = useState('count');
   const [paying, setPaying] = useState(false);
-  const [payUrl, setPayUrl] = useState('');
 
   async function handlePay(pkgId) {
     setPaying(true);
     try {
       const data = await api.createOrder(pkgId);
-      if (data.payHtml) {
-        // 支付宝返回HTML表单，在APP中需要跳转到浏览器支付
-        // 提取 form action URL
-        const match = data.payHtml.match(/action="([^"]+)"/);
-        if (match) {
-          const url = match[1].replace(/&amp;/g, '&');
-          setPayUrl(url);
-          // 打开系统浏览器进行支付
-          Linking.openURL(url).catch(() => {
-            alert('请手动在浏览器中打开 eszf.com.cn 完成支付');
-          });
+      // 从响应中提取支付宝支付URL
+      let payUrl = '';
+      if (typeof data.payHtml === 'string') {
+        // GET模式：payHtml 就是完整的支付宝URL
+        if (data.payHtml.startsWith('http')) {
+          payUrl = data.payHtml;
+        } else {
+          // POST模式：从form的action属性提取URL
+          const match = data.payHtml.match(/action="([^"]+)"/);
+          if (match) {
+            payUrl = match[1].replace(/&amp;/g, '&');
+          }
         }
       }
-      alert('✅ 订单已创建！请在支付宝中完成支付。\n支付成功后返回APP刷新即可看到配额更新。');
+      if (payUrl) {
+        // 在系统浏览器中打开支付宝支付页面
+        const opened = await Linking.openURL(payUrl).catch(() => false);
+        if (!opened) {
+          alert('请复制以下链接到浏览器中完成支付：\n' + payUrl.substring(0, 100) + '...');
+        }
+      } else {
+        alert('无法获取支付链接，请稍后重试');
+        setPaying(false);
+        return;
+      }
+      alert('✅ 订单已创建！请在支付宝中完成支付。\n支付成功后返回APP，刷新即可看到配额更新。');
       onSuccess && onSuccess();
       onClose();
     } catch (e) {

@@ -72,4 +72,12 @@ export const api = {
 
   getPackages: () =>
     request('GET', '/interact/packages'),
+
+  // 全局配额
+  getUserQuota: () =>
+    request('GET', '/user/quota', null, true),
+
+  // 排盘记录
+  getBaziHistory: (limit = 20, offset = 0) =>
+    request('GET', `/user/bazi-history?limit=${limit}&offset=${offset}`, null, true),
 };

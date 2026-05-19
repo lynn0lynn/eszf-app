@@ -248,7 +248,7 @@ export default function BaziScreen({ navigation }) {
       const hasPaid = (quota.paidQuestions || 0) > 0;
       const hasToken = (quota.tokenBalance || 0) > 0;
       if (!hasFree && !hasPaid && !hasToken) {
-        alert('😅 免费次数已用完，需要先充值才能继续分析。\n请在电脑上访问 eszf.com.cn 充值。');
+        setShowPayment(true);
         return;
       }
     }

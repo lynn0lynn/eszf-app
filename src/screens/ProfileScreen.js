@@ -1,6 +1,6 @@
-// 个人中心
+// 个人中心 — 含配额信息、排盘记录、账号设置
 import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet, Alert } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet, Alert, ActivityIndicator } from 'react-native';
 import { colors } from '../theme';
 import { api } from '../api';
 import { storage } from '../storage';
@@ -12,6 +12,10 @@ export default function ProfileScreen({ navigation, onLogout }) {
   const [editingPhone, setEditingPhone] = useState(false);
   const [oldPw, setOldPw] = useState('');
   const [newPw, setNewPw] = useState('');
+  const [quota, setQuota] = useState(null);
+  const [baziHistory, setBaziHistory] = useState([]);
+  const [loadingQuota, setLoadingQuota] = useState(true);
+  const [loadingHistory, setLoadingHistory] = useState(true);
 
   useEffect(() => {
     (async () => {
@@ -29,6 +33,20 @@ export default function ProfileScreen({ navigation, onLogout }) {
         setNickname(data.nickname || '');
         setPhone(data.phone || '');
       } catch (e) {}
+
+      // 加载全局配额
+      try {
+        const q = await api.getUserQuota();
+        setQuota(q);
+      } catch (e) {}
+      setLoadingQuota(false);
+
+      // 加载排盘记录
+      try {
+        const h = await api.getBaziHistory(20);
+        setBaziHistory(h.readings || []);
+      } catch (e) {}
+      setLoadingHistory(false);
     })();
   }, []);
 
@@ -58,8 +76,6 @@ export default function ProfileScreen({ navigation, onLogout }) {
     if (newPw.length < 4) { alert('新密码至少4位'); return; }
     try {
       await api.updateProfile({ oldPassword: oldPw, newPassword: newPw });
-      // 如果没有单独的密码修改接口，用更新 profile 会失败
-      // 单独调密码接口
     } catch (e) {
       // 尝试直接调用密码修改
       try {
@@ -112,7 +128,59 @@ export default function ProfileScreen({ navigation, onLogout }) {
         ) : null}
       </View>
 
-      {/* 设置 */}
+      {/* ===== 配额信息 ===== */}
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>📊 我的配额</Text>
+        {loadingQuota ? (
+          <ActivityIndicator size="small" color={colors.primary} />
+        ) : quota ? (
+          <View style={styles.quotaGrid}>
+            <View style={styles.quotaItem}>
+              <Text style={styles.quotaValue}>{quota.remaining_questions}</Text>
+              <Text style={styles.quotaLabel}>剩余次数</Text>
+            </View>
+            <View style={styles.quotaItem}>
+              <Text style={styles.quotaValue}>{quota.total_questions}</Text>
+              <Text style={styles.quotaLabel}>总购买次数</Text>
+            </View>
+            <View style={styles.quotaItem}>
+              <Text style={styles.quotaValue}>{((quota.remaining_tokens || 0) / 10000).toFixed(1)}万</Text>
+              <Text style={styles.quotaLabel}>剩余Token</Text>
+            </View>
+            <View style={styles.quotaItem}>
+              <Text style={styles.quotaValue}>{((quota.total_tokens || 0) / 10000).toFixed(1)}万</Text>
+              <Text style={styles.quotaLabel}>总购买Token</Text>
+            </View>
+          </View>
+        ) : (
+          <Text style={styles.noData}>暂无数据</Text>
+        )}
+      </View>
+
+      {/* ===== 排盘记录 ===== */}
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>📜 排盘记录</Text>
+        {loadingHistory ? (
+          <ActivityIndicator size="small" color={colors.primary} />
+        ) : baziHistory.length > 0 ? (
+          baziHistory.map((r, i) => (
+            <View key={r.id} style={styles.historyItem}>
+              <View style={styles.historyLeft}>
+                <Text style={styles.historyName}>{r.name || '未命名'}</Text>
+                <Text style={styles.historyInfo}>
+                  {r.gender} · {r.birth_date?.substring(0, 10)} {String(r.birth_hour || 0).padStart(2,'0')}:{String(r.birth_minute || 0).padStart(2,'0')}
+                </Text>
+                <Text style={styles.historyPlace}>{r.province}{r.city ? ' · ' + r.city.replace('市','') : ''}</Text>
+              </View>
+              <Text style={styles.historyDate}>{r.created_at?.substring(0, 10)}</Text>
+            </View>
+          ))
+        ) : (
+          <Text style={styles.noData}>暂无排盘记录</Text>
+        )}
+      </View>
+
+      {/* ===== 账号设置 ===== */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>⚙️ 账号设置</Text>
 
@@ -179,6 +247,24 @@ const styles = StyleSheet.create({
   meta: { fontSize: 12, color: colors.textMuted, marginTop: 4 },
   section: { backgroundColor: colors.card, borderRadius: 16, padding: 16, borderWidth: 1, borderColor: colors.border, marginTop: 12 },
   sectionTitle: { fontSize: 16, fontWeight: '600', color: colors.text, marginBottom: 12 },
+  // 配额样式
+  quotaGrid: { flexDirection: 'row', flexWrap: 'wrap' },
+  quotaItem: { width: '50%', alignItems: 'center', paddingVertical: 8 },
+  quotaValue: { fontSize: 24, fontWeight: '700', color: colors.primary },
+  quotaLabel: { fontSize: 12, color: colors.textDim, marginTop: 2 },
+  // 排盘记录
+  historyItem: {
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+    backgroundColor: colors.inputBg, borderRadius: 10, padding: 12,
+    marginBottom: 8, borderWidth: 1, borderColor: colors.border,
+  },
+  historyLeft: { flex: 1 },
+  historyName: { fontSize: 14, fontWeight: '600', color: colors.text },
+  historyInfo: { fontSize: 12, color: colors.textDim, marginTop: 2 },
+  historyPlace: { fontSize: 11, color: colors.textMuted, marginTop: 1 },
+  historyDate: { fontSize: 11, color: colors.textMuted },
+  noData: { fontSize: 13, color: colors.textMuted, textAlign: 'center', paddingVertical: 10 },
+  // 账号设置
   label: { fontSize: 13, color: colors.textDim, marginBottom: 4 },
   input: { backgroundColor: colors.inputBg, borderRadius: 10, padding: 10, fontSize: 14, color: colors.text, borderWidth: 1, borderColor: colors.border },
   smallBtn: { backgroundColor: colors.primary, borderRadius: 8, padding: 8, paddingHorizontal: 16, alignSelf: 'flex-start', marginTop: 8 },
