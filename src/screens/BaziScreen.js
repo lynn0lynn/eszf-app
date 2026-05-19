@@ -2,7 +2,7 @@
 import React, { useState, useRef } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, ScrollView,
-  StyleSheet, Platform, KeyboardAvoidingView,
+  StyleSheet, Platform, KeyboardAvoidingView, Modal,
 } from 'react-native';
 import { colors } from '../theme';
 import { api } from '../api';
@@ -75,6 +75,9 @@ export default function BaziScreen({ navigation }) {
   const [quota, setQuota] = useState(null);
   const [followUpText, setFollowUpText] = useState('');
   const [followUpResult, setFollowUpResult] = useState(null);
+  const [showFreeAsk, setShowFreeAsk] = useState(false);
+  const [freeAskText, setFreeAskText] = useState('');
+  const [freeAskResult, setFreeAskResult] = useState(null);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const scrollRef = useRef(null);
   const followUpRef = useRef(null);
@@ -137,6 +140,12 @@ export default function BaziScreen({ navigation }) {
     }
     if (!baziData) return;
 
+    // 自由问答 → 弹出输入框
+    if (type === 'freeask') {
+      setShowFreeAsk(true);
+      return;
+    }
+
     // 检查是否有剩余次数
     if (quota) {
       const hasFree = (quota.remainingFree || 0) > 0;
@@ -156,7 +165,7 @@ export default function BaziScreen({ navigation }) {
     try {
       const data = await api.aiAsk(baziData, type, '');
       setAiResult(data.result);
-      const labels = { health: '健康养生', career: '事业学业', marriage: '婚姻感情', children: '六亲眷属', decision: '亨通聚富' };
+      const labels = { health: '健康养生', career: '事业学业', marriage: '婚姻感情', children: '六亲眷属', decision: '亨通聚富', advice: '抉择建议' };
       setAiTitle('🤖 ' + (labels[type] || type) + ' · AI深度解读');
       // 刷新配额
       if (isLoggedIn) {
@@ -212,6 +221,39 @@ export default function BaziScreen({ navigation }) {
         alert('😅 免费次数已用完，需要先充值才能继续分析。\n请在电脑上访问 eszf.com.cn 充值。');
       } else {
         alert('追问失败：' + msg);
+      }
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  // 自由问答
+  async function handleFreeAsk() {
+    if (!freeAskText.trim()) { alert('请输入你想问的问题'); return; }
+    if (!baziData) { alert('请先排盘'); return; }
+    setShowFreeAsk(false);
+    setLoading(true);
+    setLoadText('正在思考你的问题...');
+    setFreeAskResult(null);
+    try {
+      const data = await api.customAsk(
+        freeAskText.trim(),
+        '',
+        getBaziId(baziData),
+        baziData
+      );
+      setFreeAskResult(data.answer);
+      setFreeAskText('');
+      if (isLoggedIn) {
+        try { const q = await api.getQuota(getBaziId(baziData)); setQuota(q); } catch (e) {}
+      }
+      setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 300);
+    } catch (e) {
+      const msg = e.message;
+      if (msg === 'quota_exhausted') {
+        alert('😅 免费次数已用完，需要先充值才能继续分析。\n请在电脑上访问 eszf.com.cn 充值。');
+      } else {
+        alert('自由问答失败：' + msg);
       }
     } finally {
       setLoading(false);
@@ -387,6 +429,9 @@ export default function BaziScreen({ navigation }) {
               {followUpResult ? (
                 <AiResultBlock result={followUpResult} title="💬 追问回答" />
               ) : null}
+              {freeAskResult ? (
+                <AiResultBlock result={freeAskResult} title="💬 自由问答" />
+              ) : null}
 
               {/* 追问输入 */}
               {aiResult && isLoggedIn ? (
@@ -409,6 +454,29 @@ export default function BaziScreen({ navigation }) {
       </KeyboardAvoidingView>
 
       <LoadingModal visible={loading} text={loadText} />
+      {/* 自由问答弹窗 */}
+      <Modal transparent visible={showFreeAsk} animationType="fade" onRequestClose={() => setShowFreeAsk(false)}>
+        <View style={freeModalStyles.overlay}>
+          <View style={freeModalStyles.box}>
+            <Text style={freeModalStyles.title}>💬 自由问答</Text>
+            <Text style={freeModalStyles.desc}>有什么想问的？AI结合你的八字和流运进行分析</Text>
+            <TextInput style={freeModalStyles.input}
+              placeholder="输入你想问的问题..." placeholderTextColor={colors.textMuted}
+              value={freeAskText} onChangeText={setFreeAskText}
+              multiline numberOfLines={4}
+              autoFocus
+            />
+            <View style={freeModalStyles.btnRow}>
+              <TouchableOpacity style={freeModalStyles.cancelBtn} onPress={() => { setShowFreeAsk(false); setFreeAskText(''); }}>
+                <Text style={freeModalStyles.cancelBtnText}>取消</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={freeModalStyles.sendBtn} onPress={handleFreeAsk}>
+                <Text style={freeModalStyles.sendBtnText}>发送</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
       <DatePickerModal
         visible={showDatePicker}
         onClose={() => setShowDatePicker(false)}
@@ -481,4 +549,17 @@ const styles = StyleSheet.create({
   followUpInput: { backgroundColor: colors.inputBg, borderRadius: 10, padding: 10, fontSize: 14, color: colors.text, borderWidth: 1, borderColor: colors.border, minHeight: 60, textAlignVertical: 'top' },
   followUpBtn: { backgroundColor: colors.primary, borderRadius: 10, padding: 12, alignItems: 'center', marginTop: 8 },
   followUpBtnText: { color: '#fff', fontSize: 14, fontWeight: '600' },
+});
+
+const freeModalStyles = StyleSheet.create({
+  overlay: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.6)' },
+  box: { backgroundColor: colors.card, borderRadius: 20, padding: 24, width: '88%', borderWidth: 1, borderColor: colors.border },
+  title: { fontSize: 18, fontWeight: '700', color: colors.text, textAlign: 'center', marginBottom: 6 },
+  desc: { fontSize: 13, color: colors.textDim, textAlign: 'center', marginBottom: 16, lineHeight: 18 },
+  input: { backgroundColor: colors.inputBg, borderRadius: 12, padding: 14, fontSize: 15, color: colors.text, borderWidth: 1, borderColor: colors.border, minHeight: 100, textAlignVertical: 'top' },
+  btnRow: { flexDirection: 'row', justifyContent: 'flex-end', gap: 12, marginTop: 16 },
+  cancelBtn: { paddingVertical: 10, paddingHorizontal: 20, borderRadius: 10, borderWidth: 1, borderColor: colors.border },
+  cancelBtnText: { fontSize: 14, color: colors.textDim },
+  sendBtn: { backgroundColor: colors.primary, paddingVertical: 10, paddingHorizontal: 24, borderRadius: 10 },
+  sendBtnText: { fontSize: 14, color: '#fff', fontWeight: '600' },
 });

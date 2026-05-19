@@ -9,6 +9,7 @@ const WU_WEN = [
   { key: 'marriage',  icon: '💑', label: '婚姻感情',  color: '#f472b6' },
   { key: 'children',  icon: '👨‍👩‍👧‍👦', label: '六亲眷属',  color: '#f0a040' },
   { key: 'decision',  icon: '💰', label: '亨通聚富',  color: '#ffd700' },
+  { key: 'freeask',   icon: '💬', label: '自由问答',  color: '#a78bfa' },
 ];
 
 export default function WuWenGrid({ onPress, disabled }) {
@@ -31,12 +32,13 @@ export default function WuWenGrid({ onPress, disabled }) {
 
 const styles = StyleSheet.create({
   grid: {
-    flexDirection: 'row', flexWrap: 'wrap', gap: 10,
+    flexDirection: 'row', flexWrap: 'wrap',
     justifyContent: 'center', marginVertical: 12,
+    gap: 8,
   },
   btn: {
-    backgroundColor: colors.card, borderRadius: 12, paddingVertical: 16,
-    paddingHorizontal: 12, alignItems: 'center', minWidth: 100, flex: 1,
+    backgroundColor: colors.card, borderRadius: 12, paddingVertical: 14,
+    paddingHorizontal: 8, alignItems: 'center', width: '30%', minWidth: 100,
     borderWidth: 1,
   },
   icon: { fontSize: 28, marginBottom: 6 },
