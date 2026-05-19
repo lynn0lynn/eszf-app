@@ -65,4 +65,11 @@ export const api = {
   // 配额
   getQuota: (baziId) =>
     request('GET', `/interact/quota?baziId=${encodeURIComponent(baziId || '')}`, null, true),
+
+  // 充值
+  createOrder: (packageId) =>
+    request('POST', '/alipay/create-order', { packageId }, true),
+
+  getPackages: () =>
+    request('GET', '/interact/packages'),
 };

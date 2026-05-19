@@ -13,6 +13,7 @@ import AiResultBlock from '../components/AiResultBlock';
 import LoadingModal from '../components/LoadingModal';
 import DateTimePickerModal from '../components/DateTimePickerModal';
 import CityPickerModal from '../components/CityPickerModal';
+import PaymentModal from '../components/PaymentModal';
 import { PROVINCE_CITIES } from '../data/cityData';
 
 // 快速获取省会/直辖市坐标
@@ -70,6 +71,7 @@ export default function BaziScreen({ navigation }) {
   const [city, setCity] = useState('北京市');
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showCityPicker, setShowCityPicker] = useState(false);
+  const [showPayment, setShowPayment] = useState(false);
 
   const [loading, setLoading] = useState(false);
   const [loadText, setLoadText] = useState('');
@@ -191,7 +193,7 @@ export default function BaziScreen({ navigation }) {
       setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 300);
     } catch (e) {
       if (e.message === 'quota_exhausted') {
-        alert('😅 免费次数已用完，需要先充值才能继续分析。\n请在电脑上访问 eszf.com.cn 充值。');
+        setShowPayment(true);
       } else {
         alert('AI分析失败：' + e.message);
       }
@@ -226,7 +228,7 @@ export default function BaziScreen({ navigation }) {
       setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 300);
     } catch (e) {
       if (e.message === 'quota_exhausted') {
-        alert('😅 免费次数已用完，需要先充值才能继续分析。\n请在电脑上访问 eszf.com.cn 充值。');
+        setShowPayment(true);
       } else {
         alert('分析失败：' + e.message);
       }
@@ -267,11 +269,10 @@ export default function BaziScreen({ navigation }) {
       }
       setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 300);
     } catch (e) {
-      const msg = e.message;
-      if (msg === 'quota_exhausted') {
-        alert('😅 免费次数已用完，需要先充值才能继续分析。\n请在电脑上访问 eszf.com.cn 充值。');
+      if (e.message === 'quota_exhausted') {
+        setShowPayment(true);
       } else {
-        alert('追问失败：' + msg);
+        alert('追问失败：' + e.message);
       }
     } finally {
       setLoading(false);
@@ -300,11 +301,10 @@ export default function BaziScreen({ navigation }) {
       }
       setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 300);
     } catch (e) {
-      const msg = e.message;
-      if (msg === 'quota_exhausted') {
-        alert('😅 免费次数已用完，需要先充值才能继续分析。\n请在电脑上访问 eszf.com.cn 充值。');
+      if (e.message === 'quota_exhausted') {
+        setShowPayment(true);
       } else {
-        alert('自由问答失败：' + msg);
+        alert('自由问答失败：' + e.message);
       }
     } finally {
       setLoading(false);
@@ -344,9 +344,14 @@ export default function BaziScreen({ navigation }) {
           {/* 配额栏 */}
           {quota && isLoggedIn ? (
             <View style={styles.quotaBar}>
-              <Text style={styles.quotaText}>
-                🎯 免费 {quota.remainingFree || 0}次 · 📦 {quota.paidQuestions || 0}次 · ⚡ {((quota.tokenBalance || 0) / 10000).toFixed(1)}万
-              </Text>
+              <View style={styles.quotaRow}>
+                <Text style={styles.quotaText}>
+                  🎯 免费 {quota.remainingFree || 0}/{quota.dailyFree || 3}次 · 📦 {quota.paidQuestions || 0}次 · ⚡ {((quota.tokenBalance || 0) / 10000).toFixed(1)}万
+                </Text>
+                <TouchableOpacity style={styles.quotaRechargeBtn} onPress={() => setShowPayment(true)}>
+                  <Text style={styles.quotaRechargeText}>💰 充值</Text>
+                </TouchableOpacity>
+              </View>
             </View>
           ) : null}
 
@@ -484,9 +489,19 @@ export default function BaziScreen({ navigation }) {
                     <Text style={styles.flowLocalTitle}>📅 今日流运信息</Text>
                     <Text style={styles.flowLocalDate}>{new Date().toLocaleDateString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' })}</Text>
                     <View style={styles.flowLocalBody}>
+                      {/* 本命四柱 */}
                       <Text style={styles.flowLine}>本命：{baziData.yearPillar?.ganZhi || '--'} {baziData.monthPillar?.ganZhi || '--'} {baziData.dayPillar?.ganZhi || '--'} {baziData.hourPillar?.ganZhi || '--'}</Text>
+                      {/* 日主五行 */}
                       {baziData.wxStats?.dayWx ? (
-                        <Text style={styles.flowLine}>日主{baziData.wxStats.dayWx}{baziData.wxStats.isStrong ? '偏旺' : '偏弱'} · 喜{baziData.wxStats.maxWx || '?'} 忌{baziData.wxStats.minWx || '?'}</Text>
+                        <Text style={styles.flowLine}>日主：{baziData.wxStats.dayWx}{baziData.wxStats.isStrong ? '偏旺' : '偏弱'} · 喜{baziData.wxStats.maxWx || '?'} 忌{baziData.wxStats.minWx || '?'}</Text>
+                      ) : null}
+                      {/* 十神布局 */}
+                      {baziData.shiShen ? (
+                        <Text style={styles.flowLine}>十神：年{baziData.shiShen.year || '?'} 月{baziData.shiShen.month || '?'} 日{baziData.shiShen.day || '?'} 时{baziData.shiShen.hour || '?'}</Text>
+                      ) : null}
+                      {/* 大运信息 */}
+                      {baziData.currentDaYun && baziData.currentDaYun.length > 0 ? (
+                        <Text style={styles.flowLine}>大运：{baziData.currentDaYun.map(d => d.yunGanZhi).join(' → ')}</Text>
                       ) : null}
                     </View>
                   </View>
@@ -620,6 +635,15 @@ export default function BaziScreen({ navigation }) {
         initialProvince={province}
         initialCity={city}
       />
+      <PaymentModal
+        visible={showPayment}
+        onClose={() => setShowPayment(false)}
+        onSuccess={() => {
+          if (isLoggedIn && baziData) {
+            api.getQuota(getBaziId(baziData)).then(q => setQuota(q)).catch(() => {});
+          }
+        }}
+      />
     </>
   );
 }
@@ -631,7 +655,10 @@ const styles = StyleSheet.create({
   headerCompact: { paddingVertical: 1, marginBottom: 2 },
   headerTagline: { fontSize: 11, color: colors.textMuted, textAlign: 'center' },
   quotaBar: { backgroundColor: colors.card, borderRadius: 8, padding: 6, marginBottom: 8, borderWidth: 1, borderColor: colors.border },
-  quotaText: { fontSize: 11, color: colors.textDim, textAlign: 'center' },
+  quotaText: { fontSize: 11, color: colors.textDim, textAlign: 'center', flex: 1 },
+  quotaRow: { flexDirection: 'row', alignItems: 'center' },
+  quotaRechargeBtn: { backgroundColor: colors.primary, borderRadius: 6, paddingHorizontal: 10, paddingVertical: 3, marginLeft: 6 },
+  quotaRechargeText: { color: '#fff', fontSize: 11, fontWeight: '600' },
   form: { backgroundColor: colors.card, borderRadius: 12, padding: 10, borderWidth: 1, borderColor: colors.border, marginBottom: 8 },
   formRow: { flexDirection: 'row', columnGap: 6 },
   formHalf: { flex: 1 },
