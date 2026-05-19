@@ -23,7 +23,7 @@ async function request(method, path, body = null, auth = false) {
     clearTimeout(timeout);
     const data = await res.json();
     if (!res.ok) {
-      const msg = data.error || data.message || `请求失败(${res.status})`;
+      const msg = data.message || data.error || data.detail || `请求失败(${res.status})`;
       throw new Error(msg);
     }
     return data;

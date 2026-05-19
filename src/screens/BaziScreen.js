@@ -11,6 +11,7 @@ import PillarsCard from '../components/PillarsCard';
 import WuWenGrid from '../components/WuWenGrid';
 import AiResultBlock from '../components/AiResultBlock';
 import LoadingModal from '../components/LoadingModal';
+import DatePickerModal from '../components/DatePickerModal';
 
 // 省份城市经纬度简化数据（仅省级城市）
 const PROVINCES = [
@@ -35,6 +36,13 @@ function getToday() {
     String(d.getDate()).padStart(2, '0');
 }
 
+function formatDateDisplay(dateStr) {
+  if (!dateStr) return '点击选择日期';
+  const parts = dateStr.split('-');
+  if (parts.length !== 3) return dateStr;
+  return `${parts[0]}年${parseInt(parts[1])}月${parseInt(parts[2])}日`;
+}
+
 function getBaziId(bazi) {
   if (!bazi) return '';
   const raw = (bazi.name || '') + '|' + (bazi.gender || '') + '|' +
@@ -57,6 +65,7 @@ export default function BaziScreen({ navigation }) {
   const [hour, setHour] = useState('12');
   const [minute, setMinute] = useState('0');
   const [province, setProvince] = useState('北京市');
+  const [showDatePicker, setShowDatePicker] = useState(false);
 
   const [loading, setLoading] = useState(false);
   const [loadText, setLoadText] = useState('');
@@ -68,6 +77,7 @@ export default function BaziScreen({ navigation }) {
   const [followUpResult, setFollowUpResult] = useState(null);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const scrollRef = useRef(null);
+  const followUpRef = useRef(null);
 
   // 检查登录状态
   React.useEffect(() => {
@@ -93,7 +103,6 @@ export default function BaziScreen({ navigation }) {
     setFollowUpResult(null);
     try {
       const coords = PROVINCE_COORDS[province] || [116.4, 39.9];
-      // 解析日期，防异常
       const hh = String(Math.min(Math.max(parseInt(hour) || 12, 0), 23)).padStart(2,'0');
       const mm = String(Math.min(Math.max(parseInt(minute) || 0, 0), 59)).padStart(2,'0');
       const dateObj = new Date(birthDate + 'T' + hh + ':' + mm + ':00');
@@ -128,6 +137,17 @@ export default function BaziScreen({ navigation }) {
     }
     if (!baziData) return;
 
+    // 检查是否有剩余次数
+    if (quota) {
+      const hasFree = (quota.remainingFree || 0) > 0;
+      const hasPaid = (quota.paidQuestions || 0) > 0;
+      const hasToken = (quota.tokenBalance || 0) > 0;
+      if (!hasFree && !hasPaid && !hasToken) {
+        alert('😅 免费次数已用完，需要先充值才能继续分析。\n请在电脑上访问 eszf.com.cn 充值。');
+        return;
+      }
+    }
+
     setLoading(true);
     setLoadText('正在请求AI分析...');
     setAiResult(null);
@@ -144,7 +164,12 @@ export default function BaziScreen({ navigation }) {
       }
       setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 300);
     } catch (e) {
-      alert('AI分析失败：' + e.message);
+      const msg = e.message;
+      if (msg === 'quota_exhausted') {
+        alert('😅 免费次数已用完，需要先充值才能继续分析。\n请在电脑上访问 eszf.com.cn 充值。');
+      } else {
+        alert('AI分析失败：' + msg);
+      }
     } finally {
       setLoading(false);
     }
@@ -154,6 +179,17 @@ export default function BaziScreen({ navigation }) {
   async function handleFollowUp() {
     if (!followUpText.trim()) return;
     if (!baziData) { alert('请先排盘'); return; }
+
+    // 检查是否有剩余次数
+    if (quota) {
+      const hasFree = (quota.remainingFree || 0) > 0;
+      const hasPaid = (quota.paidQuestions || 0) > 0;
+      const hasToken = (quota.tokenBalance || 0) > 0;
+      if (!hasFree && !hasPaid && !hasToken) {
+        alert('😅 免费次数已用完，需要先充值才能继续分析。\n请在电脑上访问 eszf.com.cn 充值。');
+        return;
+      }
+    }
 
     setLoading(true);
     setLoadText('正在追问...');
@@ -171,183 +207,193 @@ export default function BaziScreen({ navigation }) {
       }
       setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 300);
     } catch (e) {
-      alert('追问失败：' + e.message);
+      const msg = e.message;
+      if (msg === 'quota_exhausted') {
+        alert('😅 免费次数已用完，需要先充值才能继续分析。\n请在电脑上访问 eszf.com.cn 充值。');
+      } else {
+        alert('追问失败：' + msg);
+      }
     } finally {
       setLoading(false);
     }
   }
 
-  // 背景信息（追问用）
-  const bgInfo = React.useMemo(() => {
-    if (!baziData) return '';
-    const parts = [];
-    if (baziData.yearPillar) {
-      parts.push(`八字：${baziData.yearPillar.ganZhi} ${baziData.monthPillar.ganZhi} ${baziData.dayPillar.ganZhi} ${baziData.hourPillar.ganZhi}`);
-    }
-    if (baziData.wxStats?.stats) {
-      const stats = baziData.wxStats.stats;
-      parts.push(`五行：${Object.entries(stats).map(([k, v]) => `${k}${v}`).join(' ')}`);
-    }
-    return parts.join('\n');
-  }, [baziData]);
-
   return (
-    <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <ScrollView ref={scrollRef} style={styles.scroll} contentContainerStyle={styles.content}>
-        {/* 头部 */}
-        <View style={styles.header}>
-          <Text style={styles.logo}>☯</Text>
-          <Text style={styles.headerTitle}>问 数</Text>
-          <Text style={styles.headerSub}>八字排盘 · AI解读</Text>
-        </View>
-
-        {/* 配额栏 */}
-        {quota && isLoggedIn ? (
-          <View style={styles.quotaBar}>
-            <Text style={styles.quotaText}>
-              🎯 免费 {quota.remainingFree || 0}次 · 📦 {quota.paidQuestions || 0}次 · ⚡ {((quota.tokenBalance || 0) / 10000).toFixed(1)}万
-            </Text>
+    <>
+      <KeyboardAvoidingView style={styles.outer} behavior={Platform.OS === 'ios' ? 'padding' : undefined} keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}>
+        <ScrollView
+          ref={scrollRef}
+          style={styles.scroll}
+          contentContainerStyle={styles.content}
+          keyboardShouldPersistTaps="handled"
+          automaticallyAdjustKeyboardInsets={true}
+        >
+          {/* 头部 */}
+          <View style={styles.header}>
+            <Text style={styles.logo}>☯</Text>
+            <Text style={styles.headerTitle}>问 数</Text>
+            <Text style={styles.headerSub}>八字排盘 · AI解读</Text>
           </View>
-        ) : null}
 
-        {/* 输入表单 */}
-        <View style={styles.form}>
-          <View style={styles.formRow}>
-            <View style={styles.formHalf}>
-              <Text style={styles.label}>姓名</Text>
-              <TextInput style={styles.input} placeholder="可选" placeholderTextColor={colors.textMuted}
-                value={name} onChangeText={setName} />
+          {/* 配额栏 */}
+          {quota && isLoggedIn ? (
+            <View style={styles.quotaBar}>
+              <Text style={styles.quotaText}>
+                🎯 免费 {quota.remainingFree || 0}次 · 📦 {quota.paidQuestions || 0}次 · ⚡ {((quota.tokenBalance || 0) / 10000).toFixed(1)}万
+              </Text>
             </View>
-            <View style={styles.formHalf}>
-              <Text style={styles.label}>性别</Text>
-              <View style={styles.genderRow}>
-                {['男', '女'].map(g => (
-                  <TouchableOpacity key={g}
-                    style={[styles.genderBtn, gender === g && styles.genderActive]}
-                    onPress={() => setGender(g)}>
-                    <Text style={[styles.genderText, gender === g && styles.genderTextActive]}>{g}</Text>
-                  </TouchableOpacity>
-                ))}
+          ) : null}
+
+          {/* 输入表单 */}
+          <View style={styles.form}>
+            <View style={styles.formRow}>
+              <View style={styles.formHalf}>
+                <Text style={styles.label}>姓名</Text>
+                <TextInput style={styles.input} placeholder="可选" placeholderTextColor={colors.textMuted}
+                  value={name} onChangeText={setName} />
               </View>
-            </View>
-          </View>
-
-          <Text style={styles.label}>出生日期</Text>
-          <TextInput style={styles.input} placeholder="YYYY-MM-DD" placeholderTextColor={colors.textMuted}
-            value={birthDate} onChangeText={setBirthDate} />
-
-          <View style={styles.formRow}>
-            <View style={styles.formHalf}>
-              <Text style={styles.label}>时</Text>
-              <TextInput style={styles.input} placeholder="0-23" placeholderTextColor={colors.textMuted}
-                value={hour} onChangeText={setHour} keyboardType="number-pad" />
-            </View>
-            <View style={styles.formHalf}>
-              <Text style={styles.label}>分</Text>
-              <TextInput style={styles.input} placeholder="0-59" placeholderTextColor={colors.textMuted}
-                value={minute} onChangeText={setMinute} keyboardType="number-pad" />
-            </View>
-          </View>
-
-          <Text style={styles.label}>出生地点</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.provinceScroll}>
-            {PROVINCES.map(p => (
-              <TouchableOpacity key={p}
-                style={[styles.provinceBtn, province === p && styles.provinceActive]}
-                onPress={() => setProvince(p)}>
-                <Text style={[styles.provinceText, province === p && styles.provinceTextActive]}>{p}</Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-
-          <TouchableOpacity style={styles.calcBtn} onPress={handleCalc} disabled={loading}>
-            <Text style={styles.calcBtnText}>🔮 开始排盘</Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* 排盘结果 */}
-        {baziData ? (
-          <>
-            <PillarsCard bazi={baziData} />
-
-            {/* 五行信息 */}
-            {baziData.wxStats?.stats ? (
-              <View style={styles.infoCard}>
-                <Text style={styles.infoTitle}>⚖️ 五行能量</Text>
-                <Text style={styles.infoContent}>
-                  {Object.entries(baziData.wxStats.stats).map(([k, v]) =>
-                    `${k}${v}`
-                  ).join('  ·  ')}
-                </Text>
-                {baziData.wxStats.dayWx ? (
-                  <Text style={styles.infoContentSmall}>
-                    日主{baziData.wxStats.dayWx}
-                    {baziData.wxStats.isStrong ? '偏旺' : '偏弱'}
-                    {baziData.wxStats.maxWx ? ` · 用神${baziData.wxStats.maxWx} 忌神${baziData.wxStats.minWx}` : ''}
-                  </Text>
-                ) : null}
-              </View>
-            ) : null}
-
-            {/* 大运 */}
-            {baziData.currentDaYun && baziData.currentDaYun.length > 0 ? (
-              <View style={styles.infoCard}>
-                <Text style={styles.infoTitle}>🔄 当前大运</Text>
-                <View style={styles.dayunRow}>
-                  {baziData.currentDaYun.slice(0, 6).map((dy, i) => (
-                    <View key={i} style={styles.dayunItem}>
-                      <Text style={styles.dayunGz}>{dy.ganZhi || '--'}</Text>
-                      <Text style={styles.dayunAge}>{dy.fromAge}~{dy.toAge}岁</Text>
-                    </View>
+              <View style={styles.formHalf}>
+                <Text style={styles.label}>性别</Text>
+                <View style={styles.genderRow}>
+                  {['男', '女'].map(g => (
+                    <TouchableOpacity key={g}
+                      style={[styles.genderBtn, gender === g && styles.genderActive]}
+                      onPress={() => setGender(g)}>
+                      <Text style={[styles.genderText, gender === g && styles.genderTextActive]}>{g}</Text>
+                    </TouchableOpacity>
                   ))}
                 </View>
               </View>
-            ) : null}
-
-            {/* 五问区域 */}
-            <View style={styles.wuwenSection}>
-              <Text style={styles.sectionTitle}>🤖 AI 深度解读</Text>
-              <Text style={styles.sectionDesc}>选择你关心的话题，获取AI命理分析</Text>
-              {!isLoggedIn ? (
-                <TouchableOpacity style={styles.loginPrompt} onPress={() => navigation.navigate('Login')}>
-                  <Text style={styles.loginPromptText}>🔐 登录后使用AI解读</Text>
-                </TouchableOpacity>
-              ) : (
-                <WuWenGrid onPress={handleWuWen} disabled={loading} />
-              )}
             </View>
 
-            {/* AI结果 */}
-            {aiResult ? (
-              <AiResultBlock result={aiResult} title={aiTitle} />
-            ) : null}
-            {followUpResult ? (
-              <AiResultBlock result={followUpResult} title="💬 追问回答" />
-            ) : null}
+            <Text style={styles.label}>出生日期</Text>
+            <TouchableOpacity style={styles.dateBtn} onPress={() => setShowDatePicker(true)}>
+              <Text style={styles.dateBtnText}>{formatDateDisplay(birthDate)}</Text>
+              <Text style={styles.dateIcon}>📅</Text>
+            </TouchableOpacity>
 
-            {/* 追问输入 */}
-            {aiResult && isLoggedIn ? (
-              <View style={styles.followUpBox}>
-                <Text style={styles.followUpTitle}>💬 追问</Text>
-                <TextInput style={styles.followUpInput} placeholder="输入你的追问..." placeholderTextColor={colors.textMuted}
-                  value={followUpText} onChangeText={setFollowUpText}
-                  multiline numberOfLines={3} />
-                <TouchableOpacity style={styles.followUpBtn} onPress={handleFollowUp} disabled={loading}>
-                  <Text style={styles.followUpBtnText}>发送追问</Text>
-                </TouchableOpacity>
+            <View style={styles.formRow}>
+              <View style={styles.formHalf}>
+                <Text style={styles.label}>时</Text>
+                <TextInput style={styles.input} placeholder="0-23" placeholderTextColor={colors.textMuted}
+                  value={hour} onChangeText={setHour} keyboardType="number-pad" />
               </View>
-            ) : null}
-          </>
-        ) : null}
-      </ScrollView>
+              <View style={styles.formHalf}>
+                <Text style={styles.label}>分</Text>
+                <TextInput style={styles.input} placeholder="0-59" placeholderTextColor={colors.textMuted}
+                  value={minute} onChangeText={setMinute} keyboardType="number-pad" />
+              </View>
+            </View>
+
+            <Text style={styles.label}>出生地点</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.provinceScroll}>
+              {PROVINCES.map(p => (
+                <TouchableOpacity key={p}
+                  style={[styles.provinceBtn, province === p && styles.provinceActive]}
+                  onPress={() => setProvince(p)}>
+                  <Text style={[styles.provinceText, province === p && styles.provinceTextActive]}>{p}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+
+            <TouchableOpacity style={styles.calcBtn} onPress={handleCalc} disabled={loading}>
+              <Text style={styles.calcBtnText}>🔮 开始排盘</Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* 排盘结果 */}
+          {baziData ? (
+            <>
+              <PillarsCard bazi={baziData} />
+
+              {/* 五行信息 */}
+              {baziData.wxStats?.stats ? (
+                <View style={styles.infoCard}>
+                  <Text style={styles.infoTitle}>⚖️ 五行能量</Text>
+                  <Text style={styles.infoContent}>
+                    {Object.entries(baziData.wxStats.stats).map(([k, v]) =>
+                      `${k}${v}`
+                    ).join('  ·  ')}
+                  </Text>
+                  {baziData.wxStats.dayWx ? (
+                    <Text style={styles.infoContentSmall}>
+                      日主{baziData.wxStats.dayWx}
+                      {baziData.wxStats.isStrong ? '偏旺' : '偏弱'}
+                      {baziData.wxStats.maxWx ? ` · 用神${baziData.wxStats.maxWx} 忌神${baziData.wxStats.minWx}` : ''}
+                    </Text>
+                  ) : null}
+                </View>
+              ) : null}
+
+              {/* 大运 */}
+              {baziData.currentDaYun && baziData.currentDaYun.length > 0 ? (
+                <View style={styles.infoCard}>
+                  <Text style={styles.infoTitle}>🔄 当前大运</Text>
+                  <View style={styles.dayunRow}>
+                    {baziData.currentDaYun.slice(0, 6).map((dy, i) => (
+                      <View key={i} style={styles.dayunItem}>
+                        <Text style={styles.dayunGz}>{dy.ganZhi || '--'}</Text>
+                        <Text style={styles.dayunAge}>{dy.fromAge}~{dy.toAge}岁</Text>
+                      </View>
+                    ))}
+                  </View>
+                </View>
+              ) : null}
+
+              {/* 五问区域 */}
+              <View style={styles.wuwenSection}>
+                <Text style={styles.sectionTitle}>🤖 AI 深度解读</Text>
+                <Text style={styles.sectionDesc}>选择你关心的话题，获取AI命理分析</Text>
+                {!isLoggedIn ? (
+                  <TouchableOpacity style={styles.loginPrompt} onPress={() => navigation.navigate('Login')}>
+                    <Text style={styles.loginPromptText}>🔐 登录后使用AI解读</Text>
+                  </TouchableOpacity>
+                ) : (
+                  <WuWenGrid onPress={handleWuWen} disabled={loading} />
+                )}
+              </View>
+
+              {/* AI结果 */}
+              {aiResult ? (
+                <AiResultBlock result={aiResult} title={aiTitle} />
+              ) : null}
+              {followUpResult ? (
+                <AiResultBlock result={followUpResult} title="💬 追问回答" />
+              ) : null}
+
+              {/* 追问输入 */}
+              {aiResult && isLoggedIn ? (
+                <View style={styles.followUpBox}>
+                  <Text style={styles.followUpTitle}>💬 追问</Text>
+                  <TextInput ref={followUpRef} style={styles.followUpInput}
+                    placeholder="输入你的追问..." placeholderTextColor={colors.textMuted}
+                    value={followUpText} onChangeText={setFollowUpText}
+                    multiline numberOfLines={3}
+                    returnKeyType="default"
+                  />
+                  <TouchableOpacity style={styles.followUpBtn} onPress={handleFollowUp} disabled={loading}>
+                    <Text style={styles.followUpBtnText}>发送追问</Text>
+                  </TouchableOpacity>
+                </View>
+              ) : null}
+            </>
+          ) : null}
+        </ScrollView>
+      </KeyboardAvoidingView>
 
       <LoadingModal visible={loading} text={loadText} />
-    </KeyboardAvoidingView>
+      <DatePickerModal
+        visible={showDatePicker}
+        onClose={() => setShowDatePicker(false)}
+        onConfirm={setBirthDate}
+        initialDate={birthDate}
+      />
+    </>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.bg },
+  outer: { flex: 1, backgroundColor: colors.bg },
   scroll: { flex: 1 },
   content: { padding: 16, paddingBottom: 40 },
   header: { alignItems: 'center', marginVertical: 16 },
@@ -361,6 +407,13 @@ const styles = StyleSheet.create({
   formHalf: { flex: 1 },
   label: { fontSize: 13, color: colors.textDim, marginBottom: 4, marginTop: 8 },
   input: { backgroundColor: colors.inputBg, borderRadius: 10, padding: 10, fontSize: 14, color: colors.text, borderWidth: 1, borderColor: colors.border },
+  dateBtn: {
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+    backgroundColor: colors.inputBg, borderRadius: 10, padding: 10,
+    borderWidth: 1, borderColor: colors.border,
+  },
+  dateBtnText: { fontSize: 14, color: colors.text },
+  dateIcon: { fontSize: 16 },
   genderRow: { flexDirection: 'row', gap: 8 },
   genderBtn: { flex: 1, padding: 10, borderRadius: 10, borderWidth: 1, borderColor: colors.border, alignItems: 'center' },
   genderActive: { borderColor: colors.primary, backgroundColor: colors.primary + '20' },
