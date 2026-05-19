@@ -183,7 +183,7 @@ export default function BaziScreen({ navigation }) {
 
     setFlowLoading(true);
     try {
-      const data = await api.aiAsk(baziData, type, '');
+      const data = await api.aiAsk(baziData, type, '', true); // free=true 不扣费
       setFlowResult(data.result);
       if (isLoggedIn) {
         try { const q = await api.getQuota(getBaziId(baziData)); setQuota(q); } catch (e) {}

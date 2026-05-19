@@ -55,8 +55,8 @@ export const api = {
     request('POST', '/bazi/mobile-calc', { birthDate, lng, lat, gender, name }),
 
   // 五问 AI
-  aiAsk: (baziData, questionType, backgroundContext) =>
-    request('POST', '/bazi/ai-ask', { baziData, questionType, backgroundContext }, true),
+  aiAsk: (baziData, questionType, backgroundContext, free = false) =>
+    request('POST', '/bazi/ai-ask', { baziData, questionType, backgroundContext, free }, true),
 
   // 追问
   customAsk: (question, backgroundContext, baziId, baziData) =>
