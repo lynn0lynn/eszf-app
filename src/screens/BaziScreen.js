@@ -11,7 +11,7 @@ import PillarsCard from '../components/PillarsCard';
 import WuWenGrid from '../components/WuWenGrid';
 import AiResultBlock from '../components/AiResultBlock';
 import LoadingModal from '../components/LoadingModal';
-import DatePickerModal from '../components/DatePickerModal';
+import DateTimePickerModal from '../components/DateTimePickerModal';
 import CityPickerModal from '../components/CityPickerModal';
 import { PROVINCE_CITIES } from '../data/cityData';
 
@@ -82,12 +82,11 @@ export default function BaziScreen({ navigation }) {
   const [showFreeAsk, setShowFreeAsk] = useState(false);
   const [freeAskText, setFreeAskText] = useState('');
   const [freeAskResult, setFreeAskResult] = useState(null);
-  const [dailyTip, setDailyTip] = useState(null);
-  const [dailyTipLoading, setDailyTipLoading] = useState(false);
-  const [monthlyTip, setMonthlyTip] = useState(null);
-  const [yearlyTip, setYearlyTip] = useState(null);
-  const [pendingWuWen, setPendingWuWen] = useState(null); // {type, label, icon}
-  const [confirmLoading, setConfirmLoading] = useState(false);
+  // 五问本地流运展示
+  const [flowInfoType, setFlowInfoType] = useState(null); // 当前选中的五问类型
+  const [flowQuestion, setFlowQuestion] = useState('');   // 用户输入的问题
+  const [flowResult, setFlowResult] = useState(null);      // AI回答
+  const [flowLoading, setFlowLoading] = useState(false);   // AI加载中
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const scrollRef = useRef(null);
   const followUpRef = useRef(null);
@@ -141,28 +140,8 @@ export default function BaziScreen({ navigation }) {
     }
   }
 
-  // 排盘完成后自动加载今日运势
-  React.useEffect(() => {
-    if (!baziData || !isLoggedIn) return;
-    (async () => {
-      setDailyTip(null);
-      setMonthlyTip(null);
-      setYearlyTip(null);
-      setDailyTipLoading(true);
-      try {
-        // 今日流日运势 - 免费每日提示
-        const tipData = await api.aiAsk(baziData, 'daily_tip', '');
-        if (tipData && tipData.result) setDailyTip(tipData.result);
-      } catch (e) {
-        console.log('Daily tip unavailable:', e.message);
-      } finally {
-        setDailyTipLoading(false);
-      }
-    })();
-  }, [baziData, isLoggedIn]);
-
-  // 五问：第一步 → 展示流运信息 + AI确认按钮
-  async function handleWuWen(type) {
+  // 五问：点击前5个 → 展示流运信息 + 提问框
+  function handleWuWen(type) {
     if (!isLoggedIn) {
       alert('请先登录后使用AI分析');
       navigation.navigate('Login');
@@ -170,23 +149,60 @@ export default function BaziScreen({ navigation }) {
     }
     if (!baziData) return;
 
-    // 自由问答 → 弹出输入框
+    // 自由问答(第6个) → 直接弹输入框
     if (type === 'freeask') {
       setShowFreeAsk(true);
       return;
     }
 
-    // 检查配额
-    if (quota) {
-      const hasFree = (quota.remainingFree || 0) > 0;
-      const hasPaid = (quota.paidQuestions || 0) > 0;
-      const hasToken = (quota.tokenBalance || 0) > 0;
-      if (!hasFree && !hasPaid && !hasToken) {
-        alert('😅 免费次数已用完，需要先充值才能继续分析。\n请在电脑上访问 eszf.com.cn 充值。');
-        return;
-      }
-    }
+    // 前5个 → 展示流运信息 + 用户可自由提问
+    setFlowInfoType(type);
+    setAiResult(null);
+    setFollowUpResult(null);
+    setFreeAskResult(null);
+    setFlowResult(null);
+    setFlowQuestion('');
+    setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 300);
+  }
 
+  // 五问：用户点击"AI分析"按钮 → 调API分析该话题
+  async function handleFlowAiAsk() {
+    if (!flowInfoType) return;
+    const typeMap = {
+      health: 'health', career: 'career', marriage: 'marriage',
+      children: 'children', decision: 'decision',
+    };
+    const type = typeMap[flowInfoType] || flowInfoType;
+    const labels = {
+      health: { label: '健康养生', icon: '🏥' },
+      career: { label: '事业学业', icon: '💼' },
+      marriage: { label: '婚姻感情', icon: '💑' },
+      children: { label: '六亲眷属', icon: '👨‍👩‍👧‍👦' },
+      decision: { label: '亨通聚富', icon: '💰' },
+    };
+
+    setFlowLoading(true);
+    try {
+      const data = await api.aiAsk(baziData, type, '');
+      setFlowResult(data.result);
+      if (isLoggedIn) {
+        try { const q = await api.getQuota(getBaziId(baziData)); setQuota(q); } catch (e) {}
+      }
+      setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 300);
+    } catch (e) {
+      if (e.message === 'quota_exhausted') {
+        alert('😅 免费次数已用完，需要先充值才能继续分析。\n请在电脑上访问 eszf.com.cn 充值。');
+      } else {
+        alert('AI分析失败：' + e.message);
+      }
+    } finally {
+      setFlowLoading(false);
+    }
+  }
+
+  // 五问：用户输入自由问题后发送AI
+  async function handleFlowSend() {
+    if (!flowQuestion.trim()) { alert('请输入你想问的问题'); return; }
     const labels = {
       health: { label: '健康养生', icon: '🏥', color: '#4ade80' },
       career: { label: '事业学业', icon: '💼', color: '#667eea' },
@@ -194,41 +210,28 @@ export default function BaziScreen({ navigation }) {
       children: { label: '六亲眷属', icon: '👨‍👩‍👧‍👦', color: '#f0a040' },
       decision: { label: '亨通聚富', icon: '💰', color: '#ffd700' },
     };
+    const info = labels[flowInfoType] || { label: '分析', icon: '🔮' };
 
-    // 设置待确认状态 → 显示流运信息 + AI按钮（不直接调API）
-    setPendingWuWen({ type, ...labels[type] });
-    setAiResult(null);
-    setFollowUpResult(null);
-    setFreeAskResult(null);
-    setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 300);
-  }
+    // 构建问题上下文：带上选中的话题
+    const question = `【${info.label}相关】${flowQuestion.trim()}`;
 
-  // 五问：第二步 → 用户点击"AI深度解读"后真正调API
-  async function handleConfirmAi() {
-    if (!pendingWuWen) return;
-    const type = pendingWuWen.type;
-
-    setConfirmLoading(true); // 卡片内显示加载，不弹全屏转圈
-
+    setFlowLoading(true);
     try {
-      const data = await api.aiAsk(baziData, type, '');
-      setPendingWuWen(null); // 隐藏确认区
-      setConfirmLoading(false);
-      setAiResult(data.result);
-      setAiTitle('🤖 ' + pendingWuWen.label + ' · AI深度解读');
-      // 刷新配额
+      const data = await api.customAsk(question, '', getBaziId(baziData), baziData);
+      setFlowResult(data.answer);
+      setFlowQuestion('');
       if (isLoggedIn) {
         try { const q = await api.getQuota(getBaziId(baziData)); setQuota(q); } catch (e) {}
       }
       setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 300);
     } catch (e) {
-      setConfirmLoading(false);
-      const msg = e.message;
-      if (msg === 'quota_exhausted') {
+      if (e.message === 'quota_exhausted') {
         alert('😅 免费次数已用完，需要先充值才能继续分析。\n请在电脑上访问 eszf.com.cn 充值。');
       } else {
-        alert('AI分析失败：' + msg);
+        alert('分析失败：' + e.message);
       }
+    } finally {
+      setFlowLoading(false);
     }
   }
 
@@ -369,24 +372,11 @@ export default function BaziScreen({ navigation }) {
               </View>
             </View>
 
-            <Text style={styles.label}>出生日期</Text>
+            <Text style={styles.label}>出生日期与时间</Text>
             <TouchableOpacity style={styles.dateBtn} onPress={() => setShowDatePicker(true)}>
-              <Text style={styles.dateBtnText}>{formatDateDisplay(birthDate)}</Text>
+              <Text style={styles.dateBtnText}>{formatDateDisplay(birthDate)} {String(hour).padStart(2,'0')}:{String(minute).padStart(2,'0')}</Text>
               <Text style={styles.dateIcon}>📅</Text>
             </TouchableOpacity>
-
-            <View style={styles.formRow}>
-              <View style={styles.formHalf}>
-                <Text style={styles.label}>时</Text>
-                <TextInput style={styles.input} placeholder="0-23" placeholderTextColor={colors.textMuted}
-                  value={hour} onChangeText={setHour} keyboardType="number-pad" />
-              </View>
-              <View style={styles.formHalf}>
-                <Text style={styles.label}>分</Text>
-                <TextInput style={styles.input} placeholder="0-59" placeholderTextColor={colors.textMuted}
-                  value={minute} onChangeText={setMinute} keyboardType="number-pad" />
-              </View>
-            </View>
 
             <Text style={styles.label}>出生地点</Text>
             <TouchableOpacity style={styles.cityBtn} onPress={() => setShowCityPicker(true)}>
@@ -467,60 +457,6 @@ export default function BaziScreen({ navigation }) {
                 </View>
               ) : null}
 
-              {/* 每日运势提醒 */}
-              {baziData && isLoggedIn ? (
-                <View style={styles.tipCard}>
-                  <View style={styles.tipHeader}>
-                    <Text style={styles.tipTitle}>📅 今日流日运势</Text>
-                    <Text style={styles.tipDate}>{new Date().toLocaleDateString('zh-CN', { month: 'long', day: 'numeric', weekday: 'long' })}</Text>
-                  </View>
-                  {dailyTipLoading ? (
-                    <Text style={styles.tipLoading}>加载中...</Text>
-                  ) : dailyTip ? (
-                    <Text style={styles.tipText}>{dailyTip}</Text>
-                  ) : null}
-                  {/* 本月/今年 + 提醒按钮 */}
-                  <View style={styles.tipBtns}>
-                    <TouchableOpacity style={styles.tipBtn} onPress={async () => {
-                      try {
-                        setLoading(true); setLoadText('正在分析本月运势...');
-                        const d = await api.aiAsk(baziData, 'monthly_tip', '');
-                        setMonthlyTip(d.result);
-                        setLoading(false);
-                      } catch(e) { setLoading(false); alert('获取失败'); }
-                    }}>
-                      <Text style={styles.tipBtnText}>📆 本月运势</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity style={styles.tipBtn} onPress={async () => {
-                      try {
-                        setLoading(true); setLoadText('正在分析今年运势...');
-                        const d = await api.aiAsk(baziData, 'yearly_tip', '');
-                        setYearlyTip(d.result);
-                        setLoading(false);
-                      } catch(e) { setLoading(false); alert('获取失败'); }
-                    }}>
-                      <Text style={styles.tipBtnText}>📅 今年运势</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity style={[styles.tipBtn, styles.tipBtnAccent]} onPress={handleSetupReminder}>
-                      <Text style={[styles.tipBtnText, styles.tipBtnAccentText]}>🔔 开启每日提醒</Text>
-                    </TouchableOpacity>
-                  </View>
-                  {/* 本月/今年详情 */}
-                  {monthlyTip ? (
-                    <View style={styles.tipDetail}>
-                      <Text style={styles.tipDetailTitle}>📆 本月运势</Text>
-                      <Text style={styles.tipText}>{monthlyTip}</Text>
-                    </View>
-                  ) : null}
-                  {yearlyTip ? (
-                    <View style={styles.tipDetail}>
-                      <Text style={styles.tipDetailTitle}>📅 今年运势</Text>
-                      <Text style={styles.tipText}>{yearlyTip}</Text>
-                    </View>
-                  ) : null}
-                </View>
-              ) : null}
-
               {/* 五问区域 */}
               <View style={styles.wuwenSection}>
                 <Text style={styles.sectionTitle}>🤖 AI 深度解读</Text>
@@ -534,55 +470,75 @@ export default function BaziScreen({ navigation }) {
                 )}
               </View>
 
-              {/* 待确认 → 流运信息 + AI按钮 */}
-              {pendingWuWen ? (
-                <View style={styles.confirmCard}>
-                  {/* 流运信息（本地免费展示） */}
-                  <View style={styles.flowInfo}>
-                    <Text style={styles.flowTitle}>📍 流运信息 · {pendingWuWen.label}</Text>
-                    <Text style={styles.flowDate}>{new Date().toLocaleDateString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric' })}</Text>
-                  </View>
-                  <View style={styles.flowBody}>
-                    <Text style={styles.flowPillars}>
-                      本命：{baziData.yearPillar?.ganZhi || '--'} {baziData.monthPillar?.ganZhi || '--'} {baziData.dayPillar?.ganZhi || '--'} {baziData.hourPillar?.ganZhi || '--'}
-                    </Text>
-                    {baziData.wxStats?.dayWx ? (
-                      <Text style={styles.flowDetail}>
-                        日主{baziData.wxStats.dayWx}{baziData.wxStats.isStrong ? '偏旺' : '偏弱'}
-                        {baziData.wxStats.maxWx ? ` · 喜${baziData.wxStats.maxWx} 忌${baziData.wxStats.minWx}` : ''}
-                      </Text>
-                    ) : null}
-                    {baziData.shiShen?.day ? (
-                      <Text style={styles.flowDetail}>日主十神：{baziData.shiShen.day}</Text>
-                    ) : null}
+              {/* 流运信息 + 提问框（点五问后出现） */}
+              {flowInfoType ? (
+                <View style={styles.flowCard}>
+                  {/* 话题标签 */}
+                  <View style={styles.flowTopicRow}>
+                    <Text style={styles.flowTopicIcon}>{flowInfoType === 'health' ? '🏥' : flowInfoType === 'career' ? '💼' : flowInfoType === 'marriage' ? '💑' : flowInfoType === 'children' ? '👨‍👩‍👧‍👦' : '💰'}</Text>
+                    <Text style={styles.flowTopicText}>{flowInfoType === 'health' ? '健康养生' : flowInfoType === 'career' ? '事业学业' : flowInfoType === 'marriage' ? '婚姻感情' : flowInfoType === 'children' ? '六亲眷属' : '亨通聚富'}</Text>
                   </View>
 
-                  {/* AI确认触发按钮 */}
-                  <View style={styles.confirmTrigger}>
-                    {confirmLoading ? (
-                      <>
-                        <View style={styles.aiLoadingBox}>
-                          <Text style={styles.aiLoadingIcon}>🤖</Text>
-                          <Text style={styles.aiLoadingText}>AI深度解读中...</Text>
-                          <Text style={styles.aiLoadingSub}>正在结合八字+流运进行分析</Text>
-                        </View>
-                      </>
-                    ) : (
-                      <>
-                        <Text style={styles.confirmLabel}>💡 以上为本地基础流运信息。点击下方按钮获取 AI 深度解读：</Text>
-                        <TouchableOpacity style={styles.confirmBtn} onPress={handleConfirmAi} disabled={loading}>
-                          <Text style={styles.confirmBtnIcon}>{pendingWuWen.icon}</Text>
-                          <Text style={styles.confirmBtnText}>🤖 AI深度解读{pendingWuWen.label}</Text>
-                        </TouchableOpacity>
-                        <Text style={styles.confirmQuota}>
-                          配额：🆓 {quota?.remainingFree || 0}次 · 📦 {quota?.paidQuestions || 0}次 · ⚡ {((quota?.tokenBalance || 0) / 10000).toFixed(1)}
-                        </Text>
-                        <TouchableOpacity onPress={() => { setPendingWuWen(null); setConfirmLoading(false); }}>
-                          <Text style={styles.confirmCancel}>取消</Text>
-                        </TouchableOpacity>
-                      </>
-                    )}
+                  {/* 流年/流月/流日信息（本地数据） */}
+                  <View style={styles.flowLocalData}>
+                    <Text style={styles.flowLocalTitle}>📅 今日流运信息</Text>
+                    <Text style={styles.flowLocalDate}>{new Date().toLocaleDateString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' })}</Text>
+                    <View style={styles.flowLocalBody}>
+                      <Text style={styles.flowLine}>本命：{baziData.yearPillar?.ganZhi || '--'} {baziData.monthPillar?.ganZhi || '--'} {baziData.dayPillar?.ganZhi || '--'} {baziData.hourPillar?.ganZhi || '--'}</Text>
+                      {baziData.wxStats?.dayWx ? (
+                        <Text style={styles.flowLine}>日主{baziData.wxStats.dayWx}{baziData.wxStats.isStrong ? '偏旺' : '偏弱'} · 喜{baziData.wxStats.maxWx || '?'} 忌{baziData.wxStats.minWx || '?'}</Text>
+                      ) : null}
+                    </View>
                   </View>
+
+                  {/* 配额状态 */}
+                  {quota ? (
+                    <View style={styles.flowQuotaRow}>
+                      <Text style={styles.flowQuotaFree}>🆓 免费 {quota.remainingFree || 0}次</Text>
+                      <Text style={styles.flowQuotaPaid}>📦 {quota.paidQuestions || 0}次 · ⚡ {((quota.tokenBalance || 0) / 10000).toFixed(1)}万</Text>
+                    </View>
+                  ) : null}
+
+                  {/* AI分析按钮（触发AI分析该话题） */}
+                  {flowLoading ? (
+                    <View style={styles.flowLoadingBox}>
+                      <Text style={styles.flowLoadingIcon}>🤖</Text>
+                      <Text style={styles.flowLoadingText}>AI分析中...</Text>
+                      <Text style={styles.flowLoadingSub}>正在结合八字+流运进行分析</Text>
+                    </View>
+                  ) : (
+                    <TouchableOpacity style={styles.flowAiBtn} onPress={handleFlowAiAsk}>
+                      <Text style={styles.flowAiBtnText}>🤖 AI深度分析{flowInfoType === 'health' ? '健康' : flowInfoType === 'career' ? '事业' : flowInfoType === 'marriage' ? '婚姻' : flowInfoType === 'children' ? '六亲' : '财运'}</Text>
+                    </TouchableOpacity>
+                  )}
+
+                  {/* AI回答结果 */}
+                  {flowResult ? (
+                    <>
+                      <AiResultBlock result={flowResult} title="🤖 AI分析结果" />
+                      {/* 自由提问框（AI结果下方） */}
+                      <View style={styles.flowFreeBox}>
+                        <Text style={styles.flowFreeLabel}>💬 还想问什么？自由提问</Text>
+                        <TextInput
+                          style={styles.flowInput}
+                          placeholder="输入你想追问的问题..."
+                          placeholderTextColor={colors.textMuted}
+                          value={flowQuestion}
+                          onChangeText={setFlowQuestion}
+                          multiline
+                          numberOfLines={2}
+                        />
+                        <TouchableOpacity style={styles.flowSendBtn} onPress={handleFlowSend}>
+                          <Text style={styles.flowSendText}>发送追问</Text>
+                        </TouchableOpacity>
+                      </View>
+                    </>
+                  ) : null}
+
+                  {/* 关闭按钮 */}
+                  <TouchableOpacity onPress={() => { setFlowInfoType(null); setFlowResult(null); setFlowQuestion(''); }}>
+                    <Text style={styles.flowCancel}>关闭</Text>
+                  </TouchableOpacity>
                 </View>
               ) : null}
 
@@ -641,11 +597,17 @@ export default function BaziScreen({ navigation }) {
           </View>
         </View>
       </Modal>
-      <DatePickerModal
+      <DateTimePickerModal
         visible={showDatePicker}
         onClose={() => setShowDatePicker(false)}
-        onConfirm={setBirthDate}
+        onConfirm={(dateStr, hourStr, minuteStr) => {
+          setBirthDate(dateStr);
+          setHour(hourStr);
+          setMinute(minuteStr);
+        }}
         initialDate={birthDate}
+        initialHour={hour}
+        initialMinute={minute}
       />
       <CityPickerModal
         visible={showCityPicker}
@@ -724,51 +686,55 @@ const styles = StyleSheet.create({
   followUpInput: { backgroundColor: colors.inputBg, borderRadius: 10, padding: 10, fontSize: 14, color: colors.text, borderWidth: 1, borderColor: colors.border, minHeight: 60, textAlignVertical: 'top' },
   followUpBtn: { backgroundColor: colors.primary, borderRadius: 10, padding: 12, alignItems: 'center', marginTop: 8 },
   followUpBtnText: { color: '#fff', fontSize: 14, fontWeight: '600' },
-  // 运势提醒卡片
-  tipCard: { backgroundColor: colors.card, borderRadius: 16, padding: 16, borderWidth: 1, borderColor: colors.primary + '44', marginBottom: 12 },
-  tipHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
-  tipTitle: { fontSize: 15, fontWeight: '700', color: colors.primary },
-  tipDate: { fontSize: 12, color: colors.textMuted },
-  tipLoading: { fontSize: 13, color: colors.textDim, textAlign: 'center', padding: 10 },
-  tipText: { fontSize: 13, color: colors.textDim, lineHeight: 20 },
-  tipBtns: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 12 },
-  tipBtn: { paddingVertical: 8, paddingHorizontal: 12, borderRadius: 10, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.inputBg },
-  tipBtnAccent: { borderColor: colors.primary, backgroundColor: colors.primary + '20' },
-  tipBtnText: { fontSize: 12, color: colors.text, fontWeight: '500' },
-  tipBtnAccentText: { color: colors.primary },
-  tipDetail: { marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: colors.border },
-  tipDetailTitle: { fontSize: 14, fontWeight: '600', color: colors.text, marginBottom: 6 },
-  // 五问确认卡（流运信息+AI按钮）
-  confirmCard: {
+  // 五问流运卡片
+  flowCard: {
     backgroundColor: colors.card, borderRadius: 16, padding: 16,
     borderWidth: 1, borderColor: colors.primary + '44', marginBottom: 12,
   },
-  flowInfo: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
-  flowTitle: { fontSize: 15, fontWeight: '700', color: colors.primary },
-  flowDate: { fontSize: 11, color: colors.textMuted },
-  flowBody: { backgroundColor: colors.inputBg, borderRadius: 10, padding: 12, marginBottom: 12 },
-  flowPillars: { fontSize: 13, color: colors.text, lineHeight: 20 },
-  flowDetail: { fontSize: 12, color: colors.textDim, marginTop: 4 },
-  confirmTrigger: { alignItems: 'center', borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 12 },
-  confirmLabel: { fontSize: 12, color: colors.textDim, textAlign: 'center', marginBottom: 10, lineHeight: 16 },
-  confirmBtn: {
-    flexDirection: 'row', backgroundColor: colors.primary, borderRadius: 14,
-    paddingVertical: 14, paddingHorizontal: 24, alignItems: 'center', justifyContent: 'center',
-    width: '100%',
+  flowTopicRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 },
+  flowTopicIcon: { fontSize: 22 },
+  flowTopicText: { fontSize: 16, fontWeight: '700', color: colors.text },
+  flowLocalData: {
+    backgroundColor: colors.inputBg, borderRadius: 10, padding: 12, marginBottom: 10,
   },
-  confirmBtnIcon: { fontSize: 20, marginRight: 6 },
-  confirmBtnText: { color: '#fff', fontSize: 15, fontWeight: '700' },
-  confirmQuota: { fontSize: 11, color: colors.textMuted, marginTop: 8 },
-  confirmCancel: { fontSize: 12, color: colors.textDim, marginTop: 10, textDecorationLine: 'underline' },
-  // AI分析中（对话框内加载态）
-  aiLoadingBox: {
+  flowLocalTitle: { fontSize: 13, fontWeight: '600', color: colors.primary, marginBottom: 2 },
+  flowLocalDate: { fontSize: 11, color: colors.textMuted, marginBottom: 8 },
+  flowLocalBody: {},
+  flowLine: { fontSize: 13, color: colors.text, lineHeight: 20 },
+  flowQuotaRow: {
+    flexDirection: 'row', justifyContent: 'space-between',
+    paddingVertical: 8, paddingHorizontal: 4, marginBottom: 10,
+    borderTopWidth: 1, borderTopColor: colors.border,
+  },
+  flowQuotaFree: { fontSize: 12, color: colors.success },
+  flowQuotaPaid: { fontSize: 12, color: colors.textDim },
+  flowAiBtn: {
+    backgroundColor: colors.primary, borderRadius: 14, paddingVertical: 14,
+    alignItems: 'center', justifyContent: 'center', marginBottom: 6,
+  },
+  flowAiBtnText: { color: '#fff', fontSize: 15, fontWeight: '700' },
+  flowLoadingBox: {
     alignItems: 'center', paddingVertical: 20, paddingHorizontal: 16,
     backgroundColor: colors.inputBg, borderRadius: 14,
-    borderWidth: 1, borderColor: colors.primary + '33', width: '100%',
+    borderWidth: 1, borderColor: colors.primary + '33',
+    marginBottom: 6,
   },
-  aiLoadingIcon: { fontSize: 36, marginBottom: 10 },
-  aiLoadingText: { fontSize: 15, fontWeight: '600', color: colors.primary, marginBottom: 4 },
-  aiLoadingSub: { fontSize: 12, color: colors.textMuted },
+  flowLoadingIcon: { fontSize: 36, marginBottom: 10 },
+  flowLoadingText: { fontSize: 15, fontWeight: '600', color: colors.primary, marginBottom: 4 },
+  flowLoadingSub: { fontSize: 12, color: colors.textMuted },
+  flowFreeBox: { marginTop: 12, borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 12 },
+  flowFreeLabel: { fontSize: 12, color: colors.textDim, marginBottom: 6 },
+  flowInput: {
+    backgroundColor: colors.inputBg, borderRadius: 10, padding: 10,
+    fontSize: 14, color: colors.text, borderWidth: 1, borderColor: colors.border,
+    minHeight: 50, textAlignVertical: 'top',
+  },
+  flowSendBtn: {
+    backgroundColor: colors.primary, borderRadius: 10, padding: 12,
+    alignItems: 'center', marginTop: 8,
+  },
+  flowSendText: { color: '#fff', fontSize: 14, fontWeight: '600' },
+  flowCancel: { fontSize: 12, color: colors.textDim, marginTop: 10, textAlign: 'center', textDecorationLine: 'underline' },
 });
 
 const freeModalStyles = StyleSheet.create({
