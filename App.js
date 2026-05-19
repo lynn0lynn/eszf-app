@@ -11,6 +11,7 @@ import ErrorBoundary from './src/components/ErrorBoundary';
 
 import LoginScreen from './src/screens/LoginScreen';
 import RegisterScreen from './src/screens/RegisterScreen';
+import WelcomeScreen from './src/screens/WelcomeScreen';
 import BaziScreen from './src/screens/BaziScreen';
 import ProfileScreen from './src/screens/ProfileScreen';
 
@@ -82,17 +83,18 @@ export default function App() {
           >
             {!isLoggedIn ? (
               <>
-                <Stack.Screen name="Login" options={{ headerShown: false }}>
+                <Stack.Screen name="Welcome" component={WelcomeScreen} options={{ headerShown: false }} />
+                <Stack.Screen name="Login" options={{ title: '登录', headerBackTitle: '返回' }}>
                   {props => <LoginScreen {...props} onLogin={handleLogin} />}
                 </Stack.Screen>
-                <Stack.Screen name="Register" options={{ title: '注册' }}>
+                <Stack.Screen name="Register" options={{ title: '注册', headerBackTitle: '返回' }}>
                   {props => <RegisterScreen {...props} onRegister={handleRegister} />}
                 </Stack.Screen>
               </>
             ) : (
               <>
                 <Stack.Screen name="Bazi" options={({ navigation }) => ({
-                  title: '☯ 问数',
+                  title: '问数',
                   headerRight: () => <ProfileBtn navigation={navigation} />,
                 })}>
                   {props => <BaziScreen {...props} />}

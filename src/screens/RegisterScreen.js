@@ -1,4 +1,4 @@
-// 注册页
+// 注册页 — 简洁表单
 import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
 import { colors } from '../theme';
@@ -33,9 +33,10 @@ export default function RegisterScreen({ navigation, onRegister }) {
 
   return (
     <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <ScrollView style={styles.scroll}>
+      <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollInner}>
         <View style={styles.logo}>
-          <Text style={styles.title}>📝 注册新用户</Text>
+          <Text style={styles.title}>创建账号</Text>
+          <Text style={styles.sub}>开启你的问数之旅</Text>
         </View>
 
         <View style={styles.form}>
@@ -74,20 +75,22 @@ export default function RegisterScreen({ navigation, onRegister }) {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.bg },
   scroll: { padding: 24 },
-  logo: { alignItems: 'center', marginVertical: 20 },
-  title: { fontSize: 22, fontWeight: '700', color: colors.text },
-  form: { backgroundColor: colors.card, borderRadius: 16, padding: 24, borderWidth: 1, borderColor: colors.border },
-  label: { fontSize: 13, color: colors.textDim, marginBottom: 4, marginTop: 12 },
+  scrollInner: { paddingBottom: 40 },
+  logo: { alignItems: 'center', marginVertical: 12 },
+  title: { fontSize: 20, fontWeight: '700', color: colors.text },
+  sub: { fontSize: 12, color: colors.textDim, marginTop: 4 },
+  form: { backgroundColor: colors.card, borderRadius: 14, padding: 20, borderWidth: 1, borderColor: colors.border },
+  label: { fontSize: 12, color: colors.textDim, marginBottom: 3, marginTop: 10 },
   input: {
-    backgroundColor: colors.inputBg, borderRadius: 10, padding: 12,
-    fontSize: 15, color: colors.text, borderWidth: 1, borderColor: colors.border,
+    backgroundColor: colors.inputBg, borderRadius: 10, padding: 10,
+    fontSize: 14, color: colors.text, borderWidth: 1, borderColor: colors.border,
   },
   hint: { fontSize: 11, color: colors.textDim, marginTop: 3 },
   btn: {
-    backgroundColor: colors.primary, borderRadius: 12, padding: 14,
-    alignItems: 'center', marginTop: 20,
+    backgroundColor: colors.primary, borderRadius: 10, padding: 12,
+    alignItems: 'center', marginTop: 16,
   },
-  btnText: { color: '#fff', fontSize: 16, fontWeight: '600' },
-  link: { color: colors.primary, textAlign: 'center', marginTop: 16, fontSize: 13 },
+  btnText: { color: '#fff', fontSize: 15, fontWeight: '600' },
+  link: { color: colors.primary, textAlign: 'center', marginTop: 14, fontSize: 13 },
   error: { color: colors.danger, fontSize: 13, textAlign: 'center', marginBottom: 8, padding: 8, backgroundColor: colors.danger + '15', borderRadius: 8 },
 });

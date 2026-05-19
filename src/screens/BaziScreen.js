@@ -78,6 +78,10 @@ export default function BaziScreen({ navigation }) {
   const [showFreeAsk, setShowFreeAsk] = useState(false);
   const [freeAskText, setFreeAskText] = useState('');
   const [freeAskResult, setFreeAskResult] = useState(null);
+  const [dailyTip, setDailyTip] = useState(null);
+  const [dailyTipLoading, setDailyTipLoading] = useState(false);
+  const [monthlyTip, setMonthlyTip] = useState(null);
+  const [yearlyTip, setYearlyTip] = useState(null);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const scrollRef = useRef(null);
   const followUpRef = useRef(null);
@@ -130,6 +134,26 @@ export default function BaziScreen({ navigation }) {
       setLoading(false);
     }
   }
+
+  // 排盘完成后自动加载今日运势
+  React.useEffect(() => {
+    if (!baziData || !isLoggedIn) return;
+    (async () => {
+      setDailyTip(null);
+      setMonthlyTip(null);
+      setYearlyTip(null);
+      setDailyTipLoading(true);
+      try {
+        // 今日流日运势 - 免费每日提示
+        const tipData = await api.aiAsk(baziData, 'daily_tip', '');
+        if (tipData && tipData.result) setDailyTip(tipData.result);
+      } catch (e) {
+        console.log('Daily tip unavailable:', e.message);
+      } finally {
+        setDailyTipLoading(false);
+      }
+    })();
+  }, [baziData, isLoggedIn]);
 
   // 五问
   async function handleWuWen(type) {
@@ -260,6 +284,26 @@ export default function BaziScreen({ navigation }) {
     }
   }
 
+  // 开启每日提醒 → 日历+推送
+  async function handleSetupReminder() {
+    try {
+      const { scheduleDailyNotification, createFortuneCalendar, addDailyCalendarEvent, requestPermissions } = await import('../services/notificationService');
+      const perms = await requestPermissions();
+      if (!perms.notif) {
+        alert('请在系统设置中允许通知权限，以便接收每日运势提醒');
+        return;
+      }
+      await scheduleDailyNotification();
+      if (perms.cal) {
+        const calId = await createFortuneCalendar();
+        if (calId) await addDailyCalendarEvent(calId);
+      }
+      alert('✅ 每日运势提醒已开启！每天早上7:00推送当日运势到你的手机。');
+    } catch (e) {
+      alert('设置提醒失败：' + e.message);
+    }
+  }
+
   return (
     <>
       <KeyboardAvoidingView style={styles.outer} behavior={Platform.OS === 'ios' ? 'padding' : undefined} keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}>
@@ -270,13 +314,6 @@ export default function BaziScreen({ navigation }) {
           keyboardShouldPersistTaps="handled"
           automaticallyAdjustKeyboardInsets={true}
         >
-          {/* 头部 */}
-          <View style={styles.header}>
-            <Text style={styles.logo}>☯</Text>
-            <Text style={styles.headerTitle}>问 数</Text>
-            <Text style={styles.headerSub}>八字排盘 · AI解读</Text>
-          </View>
-
           {/* 配额栏 */}
           {quota && isLoggedIn ? (
             <View style={styles.quotaBar}>
@@ -409,6 +446,60 @@ export default function BaziScreen({ navigation }) {
                 </View>
               ) : null}
 
+              {/* 每日运势提醒 */}
+              {baziData && isLoggedIn ? (
+                <View style={styles.tipCard}>
+                  <View style={styles.tipHeader}>
+                    <Text style={styles.tipTitle}>📅 今日流日运势</Text>
+                    <Text style={styles.tipDate}>{new Date().toLocaleDateString('zh-CN', { month: 'long', day: 'numeric', weekday: 'long' })}</Text>
+                  </View>
+                  {dailyTipLoading ? (
+                    <Text style={styles.tipLoading}>加载中...</Text>
+                  ) : dailyTip ? (
+                    <Text style={styles.tipText}>{dailyTip}</Text>
+                  ) : null}
+                  {/* 本月/今年 + 提醒按钮 */}
+                  <View style={styles.tipBtns}>
+                    <TouchableOpacity style={styles.tipBtn} onPress={async () => {
+                      try {
+                        setLoading(true); setLoadText('正在分析本月运势...');
+                        const d = await api.aiAsk(baziData, 'monthly_tip', '');
+                        setMonthlyTip(d.result);
+                        setLoading(false);
+                      } catch(e) { setLoading(false); alert('获取失败'); }
+                    }}>
+                      <Text style={styles.tipBtnText}>📆 本月运势</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={styles.tipBtn} onPress={async () => {
+                      try {
+                        setLoading(true); setLoadText('正在分析今年运势...');
+                        const d = await api.aiAsk(baziData, 'yearly_tip', '');
+                        setYearlyTip(d.result);
+                        setLoading(false);
+                      } catch(e) { setLoading(false); alert('获取失败'); }
+                    }}>
+                      <Text style={styles.tipBtnText}>📅 今年运势</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={[styles.tipBtn, styles.tipBtnAccent]} onPress={handleSetupReminder}>
+                      <Text style={[styles.tipBtnText, styles.tipBtnAccentText]}>🔔 开启每日提醒</Text>
+                    </TouchableOpacity>
+                  </View>
+                  {/* 本月/今年详情 */}
+                  {monthlyTip ? (
+                    <View style={styles.tipDetail}>
+                      <Text style={styles.tipDetailTitle}>📆 本月运势</Text>
+                      <Text style={styles.tipText}>{monthlyTip}</Text>
+                    </View>
+                  ) : null}
+                  {yearlyTip ? (
+                    <View style={styles.tipDetail}>
+                      <Text style={styles.tipDetailTitle}>📅 今年运势</Text>
+                      <Text style={styles.tipText}>{yearlyTip}</Text>
+                    </View>
+                  ) : null}
+                </View>
+              ) : null}
+
               {/* 五问区域 */}
               <View style={styles.wuwenSection}>
                 <Text style={styles.sectionTitle}>🤖 AI 深度解读</Text>
@@ -490,18 +581,16 @@ export default function BaziScreen({ navigation }) {
 const styles = StyleSheet.create({
   outer: { flex: 1, backgroundColor: colors.bg },
   scroll: { flex: 1 },
-  content: { padding: 16, paddingBottom: 40 },
-  header: { alignItems: 'center', marginVertical: 16 },
-  logo: { fontSize: 48 },
-  headerTitle: { fontSize: 24, fontWeight: '700', color: colors.primary, marginTop: 4 },
-  headerSub: { fontSize: 13, color: colors.textDim, marginTop: 2 },
-  quotaBar: { backgroundColor: colors.card, borderRadius: 10, padding: 10, marginBottom: 12, borderWidth: 1, borderColor: colors.border },
-  quotaText: { fontSize: 12, color: colors.textDim, textAlign: 'center' },
-  form: { backgroundColor: colors.card, borderRadius: 16, padding: 16, borderWidth: 1, borderColor: colors.border, marginBottom: 12 },
-  formRow: { flexDirection: 'row', gap: 12 },
+  content: { padding: 8, paddingBottom: 16 },
+  headerCompact: { paddingVertical: 1, marginBottom: 2 },
+  headerTagline: { fontSize: 11, color: colors.textMuted, textAlign: 'center' },
+  quotaBar: { backgroundColor: colors.card, borderRadius: 8, padding: 6, marginBottom: 8, borderWidth: 1, borderColor: colors.border },
+  quotaText: { fontSize: 11, color: colors.textDim, textAlign: 'center' },
+  form: { backgroundColor: colors.card, borderRadius: 12, padding: 10, borderWidth: 1, borderColor: colors.border, marginBottom: 8 },
+  formRow: { flexDirection: 'row', columnGap: 6 },
   formHalf: { flex: 1 },
-  label: { fontSize: 13, color: colors.textDim, marginBottom: 4, marginTop: 8 },
-  input: { backgroundColor: colors.inputBg, borderRadius: 10, padding: 10, fontSize: 14, color: colors.text, borderWidth: 1, borderColor: colors.border },
+  label: { fontSize: 11, color: colors.textDim, marginBottom: 2, marginTop: 4 },
+  input: { backgroundColor: colors.inputBg, borderRadius: 8, padding: 7, fontSize: 13, color: colors.text, borderWidth: 1, borderColor: colors.border },
   dateBtn: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
     backgroundColor: colors.inputBg, borderRadius: 10, padding: 10,
@@ -549,6 +638,20 @@ const styles = StyleSheet.create({
   followUpInput: { backgroundColor: colors.inputBg, borderRadius: 10, padding: 10, fontSize: 14, color: colors.text, borderWidth: 1, borderColor: colors.border, minHeight: 60, textAlignVertical: 'top' },
   followUpBtn: { backgroundColor: colors.primary, borderRadius: 10, padding: 12, alignItems: 'center', marginTop: 8 },
   followUpBtnText: { color: '#fff', fontSize: 14, fontWeight: '600' },
+  // 运势提醒卡片
+  tipCard: { backgroundColor: colors.card, borderRadius: 16, padding: 16, borderWidth: 1, borderColor: colors.primary + '44', marginBottom: 12 },
+  tipHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
+  tipTitle: { fontSize: 15, fontWeight: '700', color: colors.primary },
+  tipDate: { fontSize: 12, color: colors.textMuted },
+  tipLoading: { fontSize: 13, color: colors.textDim, textAlign: 'center', padding: 10 },
+  tipText: { fontSize: 13, color: colors.textDim, lineHeight: 20 },
+  tipBtns: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 12 },
+  tipBtn: { paddingVertical: 8, paddingHorizontal: 12, borderRadius: 10, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.inputBg },
+  tipBtnAccent: { borderColor: colors.primary, backgroundColor: colors.primary + '20' },
+  tipBtnText: { fontSize: 12, color: colors.text, fontWeight: '500' },
+  tipBtnAccentText: { color: colors.primary },
+  tipDetail: { marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: colors.border },
+  tipDetailTitle: { fontSize: 14, fontWeight: '600', color: colors.text, marginBottom: 6 },
 });
 
 const freeModalStyles = StyleSheet.create({

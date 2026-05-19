@@ -1,4 +1,4 @@
-// 登录页
+// 登录页 — 简洁表单
 import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform } from 'react-native';
 import { colors } from '../theme';
@@ -31,8 +31,7 @@ export default function LoginScreen({ navigation, onLogin }) {
     <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <View style={styles.logo}>
         <Text style={styles.logoIcon}>☯</Text>
-        <Text style={styles.logoText}>E上智方</Text>
-        <Text style={styles.tagline}>传统文化 · 问数解惑</Text>
+        <Text style={styles.logoText}>问数</Text>
       </View>
 
       <View style={styles.form}>
@@ -68,21 +67,20 @@ export default function LoginScreen({ navigation, onLogin }) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.bg, justifyContent: 'center', padding: 24 },
-  logo: { alignItems: 'center', marginBottom: 40 },
-  logoIcon: { fontSize: 60 },
-  logoText: { fontSize: 28, fontWeight: '700', color: colors.primary, marginTop: 8 },
-  tagline: { fontSize: 13, color: colors.textDim, marginTop: 4 },
-  form: { backgroundColor: colors.card, borderRadius: 16, padding: 24, borderWidth: 1, borderColor: colors.border },
-  label: { fontSize: 13, color: colors.textDim, marginBottom: 4, marginTop: 12 },
+  logo: { alignItems: 'center', marginBottom: 28 },
+  logoIcon: { fontSize: 44 },
+  logoText: { fontSize: 22, fontWeight: '700', color: colors.primary, marginTop: 4 },
+  form: { backgroundColor: colors.card, borderRadius: 14, padding: 20, borderWidth: 1, borderColor: colors.border },
+  label: { fontSize: 12, color: colors.textDim, marginBottom: 3, marginTop: 10 },
   input: {
-    backgroundColor: colors.inputBg, borderRadius: 10, padding: 12,
-    fontSize: 15, color: colors.text, borderWidth: 1, borderColor: colors.border,
+    backgroundColor: colors.inputBg, borderRadius: 10, padding: 10,
+    fontSize: 14, color: colors.text, borderWidth: 1, borderColor: colors.border,
   },
   btn: {
-    backgroundColor: colors.primary, borderRadius: 12, padding: 14,
-    alignItems: 'center', marginTop: 20,
+    backgroundColor: colors.primary, borderRadius: 10, padding: 12,
+    alignItems: 'center', marginTop: 16,
   },
-  btnText: { color: '#fff', fontSize: 16, fontWeight: '600' },
-  link: { color: colors.primary, textAlign: 'center', marginTop: 16, fontSize: 13 },
+  btnText: { color: '#fff', fontSize: 15, fontWeight: '600' },
+  link: { color: colors.primary, textAlign: 'center', marginTop: 14, fontSize: 13 },
   error: { color: colors.danger, fontSize: 13, textAlign: 'center', marginBottom: 8, padding: 8, backgroundColor: colors.danger + '15', borderRadius: 8 },
 });
