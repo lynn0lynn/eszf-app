@@ -87,6 +87,7 @@ export default function BaziScreen({ navigation }) {
   const [monthlyTip, setMonthlyTip] = useState(null);
   const [yearlyTip, setYearlyTip] = useState(null);
   const [pendingWuWen, setPendingWuWen] = useState(null); // {type, label, icon}
+  const [confirmLoading, setConfirmLoading] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const scrollRef = useRef(null);
   const followUpRef = useRef(null);
@@ -207,12 +208,12 @@ export default function BaziScreen({ navigation }) {
     if (!pendingWuWen) return;
     const type = pendingWuWen.type;
 
-    setPendingWuWen(null); // 隐藏确认区
-    setLoading(true);
-    setLoadText('正在请求AI深度解读...');
+    setConfirmLoading(true); // 卡片内显示加载，不弹全屏转圈
 
     try {
       const data = await api.aiAsk(baziData, type, '');
+      setPendingWuWen(null); // 隐藏确认区
+      setConfirmLoading(false);
       setAiResult(data.result);
       setAiTitle('🤖 ' + pendingWuWen.label + ' · AI深度解读');
       // 刷新配额
@@ -221,14 +222,13 @@ export default function BaziScreen({ navigation }) {
       }
       setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 300);
     } catch (e) {
+      setConfirmLoading(false);
       const msg = e.message;
       if (msg === 'quota_exhausted') {
         alert('😅 免费次数已用完，需要先充值才能继续分析。\n请在电脑上访问 eszf.com.cn 充值。');
       } else {
         alert('AI分析失败：' + msg);
       }
-    } finally {
-      setLoading(false);
     }
   }
 
@@ -559,17 +559,29 @@ export default function BaziScreen({ navigation }) {
 
                   {/* AI确认触发按钮 */}
                   <View style={styles.confirmTrigger}>
-                    <Text style={styles.confirmLabel}>💡 以上为本地基础流运信息。点击下方按钮获取 AI 深度解读：</Text>
-                    <TouchableOpacity style={styles.confirmBtn} onPress={handleConfirmAi} disabled={loading}>
-                      <Text style={styles.confirmBtnIcon}>{pendingWuWen.icon}</Text>
-                      <Text style={styles.confirmBtnText}>🤖 AI深度解读{pendingWuWen.label}</Text>
-                    </TouchableOpacity>
-                    <Text style={styles.confirmQuota}>
-                      配额：🆓 {quota?.remainingFree || 0}次 · 📦 {quota?.paidQuestions || 0}次 · ⚡ {((quota?.tokenBalance || 0) / 10000).toFixed(1)}
-                    </Text>
-                    <TouchableOpacity onPress={() => setPendingWuWen(null)}>
-                      <Text style={styles.confirmCancel}>取消</Text>
-                    </TouchableOpacity>
+                    {confirmLoading ? (
+                      <>
+                        <View style={styles.aiLoadingBox}>
+                          <Text style={styles.aiLoadingIcon}>🤖</Text>
+                          <Text style={styles.aiLoadingText}>AI深度解读中...</Text>
+                          <Text style={styles.aiLoadingSub}>正在结合八字+流运进行分析</Text>
+                        </View>
+                      </>
+                    ) : (
+                      <>
+                        <Text style={styles.confirmLabel}>💡 以上为本地基础流运信息。点击下方按钮获取 AI 深度解读：</Text>
+                        <TouchableOpacity style={styles.confirmBtn} onPress={handleConfirmAi} disabled={loading}>
+                          <Text style={styles.confirmBtnIcon}>{pendingWuWen.icon}</Text>
+                          <Text style={styles.confirmBtnText}>🤖 AI深度解读{pendingWuWen.label}</Text>
+                        </TouchableOpacity>
+                        <Text style={styles.confirmQuota}>
+                          配额：🆓 {quota?.remainingFree || 0}次 · 📦 {quota?.paidQuestions || 0}次 · ⚡ {((quota?.tokenBalance || 0) / 10000).toFixed(1)}
+                        </Text>
+                        <TouchableOpacity onPress={() => { setPendingWuWen(null); setConfirmLoading(false); }}>
+                          <Text style={styles.confirmCancel}>取消</Text>
+                        </TouchableOpacity>
+                      </>
+                    )}
                   </View>
                 </View>
               ) : null}
@@ -748,6 +760,15 @@ const styles = StyleSheet.create({
   confirmBtnText: { color: '#fff', fontSize: 15, fontWeight: '700' },
   confirmQuota: { fontSize: 11, color: colors.textMuted, marginTop: 8 },
   confirmCancel: { fontSize: 12, color: colors.textDim, marginTop: 10, textDecorationLine: 'underline' },
+  // AI分析中（对话框内加载态）
+  aiLoadingBox: {
+    alignItems: 'center', paddingVertical: 20, paddingHorizontal: 16,
+    backgroundColor: colors.inputBg, borderRadius: 14,
+    borderWidth: 1, borderColor: colors.primary + '33', width: '100%',
+  },
+  aiLoadingIcon: { fontSize: 36, marginBottom: 10 },
+  aiLoadingText: { fontSize: 15, fontWeight: '600', color: colors.primary, marginBottom: 4 },
+  aiLoadingSub: { fontSize: 12, color: colors.textMuted },
 });
 
 const freeModalStyles = StyleSheet.create({
