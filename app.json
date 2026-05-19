@@ -1,0 +1,34 @@
+{
+  "expo": {
+    "name": "问数 · E上智方",
+    "slug": "eszf-app",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "dark",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#0f0f1a"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.eszf.wenshu"
+    },
+    "android": {
+      "package": "com.eszf.wenshu",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#0f0f1a"
+      },
+      "edgeToEdgeEnabled": true
+    },
+    "extra": {
+      "apiUrl": "https://eszf.com.cn/api",
+      "eas": {
+        "projectId": "fa380c87-0052-4c3e-9aac-0962bf5abdde"
+      }
+    }
+  }
+}
