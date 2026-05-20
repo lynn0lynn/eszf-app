@@ -134,23 +134,26 @@ export default function ProfileScreen({ navigation, onLogout }) {
         {loadingQuota ? (
           <ActivityIndicator size="small" color={colors.primary} />
         ) : quota ? (
-          <View style={styles.quotaGrid}>
-            <View style={styles.quotaItem}>
-              <Text style={styles.quotaValue}>{quota.remaining_questions}</Text>
-              <Text style={styles.quotaLabel}>剩余次数</Text>
+          <View>
+            <View style={styles.quotaGrid}>
+              <View style={styles.quotaItem}>
+                <Text style={styles.quotaValue}>{quota.remaining_questions}</Text>
+                <Text style={styles.quotaLabel}>剩余次数</Text>
+              </View>
+              <View style={styles.quotaItem}>
+                <Text style={styles.quotaValue}>{quota.total_questions}</Text>
+                <Text style={styles.quotaLabel}>总购买次数</Text>
+              </View>
+              <View style={styles.quotaItem}>
+                <Text style={styles.quotaValue}>{((quota.remaining_tokens || 0) / 10000).toFixed(1)}万</Text>
+                <Text style={styles.quotaLabel}>剩余Token</Text>
+              </View>
+              <View style={styles.quotaItem}>
+                <Text style={styles.quotaValue}>{((quota.total_tokens || 0) / 10000).toFixed(1)}万</Text>
+                <Text style={styles.quotaLabel}>总购买Token</Text>
+              </View>
             </View>
-            <View style={styles.quotaItem}>
-              <Text style={styles.quotaValue}>{quota.total_questions}</Text>
-              <Text style={styles.quotaLabel}>总购买次数</Text>
-            </View>
-            <View style={styles.quotaItem}>
-              <Text style={styles.quotaValue}>{((quota.remaining_tokens || 0) / 10000).toFixed(1)}万</Text>
-              <Text style={styles.quotaLabel}>剩余Token</Text>
-            </View>
-            <View style={styles.quotaItem}>
-              <Text style={styles.quotaValue}>{((quota.total_tokens || 0) / 10000).toFixed(1)}万</Text>
-              <Text style={styles.quotaLabel}>总购买Token</Text>
-            </View>
+            <Text style={styles.freeNote}>🎯 每个八字首次3次免费，之后每天1次免费</Text>
           </View>
         ) : (
           <Text style={styles.noData}>暂无数据</Text>
@@ -264,6 +267,7 @@ const styles = StyleSheet.create({
   historyPlace: { fontSize: 11, color: colors.textMuted, marginTop: 1 },
   historyDate: { fontSize: 11, color: colors.textMuted },
   noData: { fontSize: 13, color: colors.textMuted, textAlign: 'center', paddingVertical: 10 },
+  freeNote: { fontSize: 11, color: colors.textMuted, textAlign: 'center', paddingTop: 8, marginTop: 8, borderTopWidth: 1, borderTopColor: colors.border },
   // 账号设置
   label: { fontSize: 13, color: colors.textDim, marginBottom: 4 },
   input: { backgroundColor: colors.inputBg, borderRadius: 10, padding: 10, fontSize: 14, color: colors.text, borderWidth: 1, borderColor: colors.border },

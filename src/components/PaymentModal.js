@@ -104,7 +104,7 @@ export default function PaymentModal({ visible, onClose, onSuccess }) {
                   {paying ? (
                     <Text style={styles.pkgPaying}>处理中...</Text>
                   ) : (
-                    <Text style={styles.pkgBuy}>购买</Text>
+                    <Text style={styles.pkgBuy}>购买套餐</Text>
                   )}
                 </View>
               </TouchableOpacity>
@@ -114,7 +114,7 @@ export default function PaymentModal({ visible, onClose, onSuccess }) {
           {/* 底部 */}
           <View style={styles.footer}>
             <TouchableOpacity onPress={onClose}>
-              <Text style={styles.footerLink}>暂不充值，继续免费使用</Text>
+              <Text style={styles.footerLink}>暂不购买，继续免费使用</Text>
             </TouchableOpacity>
           </View>
         </View>

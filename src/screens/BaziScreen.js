@@ -381,7 +381,7 @@ export default function BaziScreen({ navigation }) {
                   🎯 免费 {quota.remainingFree || 0}/{quota.dailyFree || 3}次 · 📦 {quota.paidQuestions || 0}次 · ⚡ {((quota.tokenBalance || 0) / 10000).toFixed(1)}万
                 </Text>
                 <TouchableOpacity style={styles.quotaRechargeBtn} onPress={() => setShowPayment(true)}>
-                  <Text style={styles.quotaRechargeText}>💰 充值</Text>
+                  <Text style={styles.quotaRechargeText}>💰 购买</Text>
                 </TouchableOpacity>
               </View>
             </View>
