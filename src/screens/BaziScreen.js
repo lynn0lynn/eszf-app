@@ -2,7 +2,7 @@
 import React, { useState, useRef } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, ScrollView,
-  StyleSheet, Platform, KeyboardAvoidingView, Modal,
+  StyleSheet, Platform, KeyboardAvoidingView, Modal, Alert,
 } from 'react-native';
 import { colors } from '../theme';
 import { api } from '../api';
@@ -127,6 +127,38 @@ export default function BaziScreen({ navigation }) {
       }
       const data = await api.calcBazi(dateObj.toISOString(), coords[0], coords[1], gender, name || '来访者');
       setBaziData(data);
+
+      // 如果是新盘且已登录，提示保存排盘记录
+      if (isLoggedIn && data.isExistingReading === false) {
+        setTimeout(() => {
+          Alert.alert(
+            '📝 保存排盘记录',
+            '是否将此八字排盘保存到个人中心？保存后可在「排盘记录」中随时查看。',
+            [
+              { text: '不保存', style: 'cancel' },
+              { text: '保存', onPress: async () => {
+                  try {
+                    await api.saveReading({
+                      name: name || '未命名',
+                      gender,
+                      birthDate,
+                      birthHour: parseInt(hour) || 12,
+                      birthMinute: parseInt(minute) || 0,
+                      province,
+                      city,
+                      lng: coords[0],
+                      lat: coords[1],
+                      resultData: data,
+                    });
+                    // 不弹成功提示，静默保存
+                  } catch (e) {
+                    // 保存失败也不影响使用
+                  }
+                }},
+            ]
+          );
+        }, 500);
+      }
 
       // 加载配额
       if (isLoggedIn) {

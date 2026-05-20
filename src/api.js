@@ -52,7 +52,7 @@ export const api = {
 
   // 八字排盘
   calcBazi: (birthDate, lng, lat, gender, name) =>
-    request('POST', '/bazi/mobile-calc', { birthDate, lng, lat, gender, name }),
+    request('POST', '/bazi/mobile-calc', { birthDate, lng, lat, gender, name }, true), // 带auth用于检测是否已有记录
 
   // 五问 AI
   aiAsk: (baziData, questionType, backgroundContext, free = false) =>
@@ -80,4 +80,8 @@ export const api = {
   // 排盘记录
   getBaziHistory: (limit = 20, offset = 0) =>
     request('GET', `/user/bazi-history?limit=${limit}&offset=${offset}`, null, true),
+
+  // 保存排盘记录
+  saveReading: (data) =>
+    request('POST', '/bazi/readings', data, true),
 };
