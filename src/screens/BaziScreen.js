@@ -557,6 +557,14 @@ export default function BaziScreen({ navigation }) {
                     </View>
                   </View>
 
+                  {/* 免费引流提示 */}
+                  <View style={styles.flowFreeNote}>
+                    <Text style={styles.flowFreeNoteText}>
+                      💡 每日流运自动生成，免费查看不扣费。更多详情请访问 
+                      <Text style={styles.flowFreeNoteLink}>eszf.com.cn</Text>
+                    </Text>
+                  </View>
+
                   {/* 配额状态 */}
                   {quota ? (
                     <View style={styles.flowQuotaRow}>
@@ -805,6 +813,9 @@ const styles = StyleSheet.create({
   flowLoadingSub: { fontSize: 12, color: colors.textMuted },
   flowFreeBox: { marginTop: 12, borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 12 },
   flowFreeLabel: { fontSize: 12, color: colors.textDim, marginBottom: 6 },
+  flowFreeNote: { marginTop: 8, marginBottom: 4, paddingHorizontal: 4 },
+  flowFreeNoteText: { fontSize: 11, color: colors.textMuted, textAlign: 'center', lineHeight: 16 },
+  flowFreeNoteLink: { fontSize: 11, color: colors.primary, fontWeight: '600', textDecorationLine: 'underline' },
   flowInput: {
     backgroundColor: colors.inputBg, borderRadius: 10, padding: 10,
     fontSize: 14, color: colors.text, borderWidth: 1, borderColor: colors.border,
