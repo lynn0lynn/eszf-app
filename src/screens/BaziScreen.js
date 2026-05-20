@@ -484,25 +484,148 @@ export default function BaziScreen({ navigation }) {
                     <Text style={styles.flowTopicText}>{flowInfoType === 'health' ? '健康养生' : flowInfoType === 'career' ? '事业学业' : flowInfoType === 'marriage' ? '婚姻感情' : flowInfoType === 'children' ? '六亲眷属' : '亨通聚富'}</Text>
                   </View>
 
-                  {/* 流年/流月/流日信息（本地数据） */}
+                  {/* ===== 流运信息（完整数据） ===== */}
                   <View style={styles.flowLocalData}>
-                    <Text style={styles.flowLocalTitle}>📅 今日流运信息</Text>
-                    <Text style={styles.flowLocalDate}>{new Date().toLocaleDateString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' })}</Text>
+                    <Text style={styles.flowLocalTitle}>📅 今日流运 · {new Date().toLocaleDateString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' })}</Text>
                     <View style={styles.flowLocalBody}>
-                      {/* 本命四柱 */}
-                      <Text style={styles.flowLine}>本命：{baziData.yearPillar?.ganZhi || '--'} {baziData.monthPillar?.ganZhi || '--'} {baziData.dayPillar?.ganZhi || '--'} {baziData.hourPillar?.ganZhi || '--'}</Text>
-                      {/* 日主五行 */}
+
+                      {/* ──── 一、本命信息 ──── */}
+                      <Text style={styles.flowSecTitle}>🏠 本命信息</Text>
+                      {/* 四柱+纳音 */}
+                      <Text style={styles.flowLine}>
+                        四柱：{baziData.yearPillar?.ganZhi || '--'}（{baziData.naYin?.year || '？'}）
+                        {' '}{baziData.monthPillar?.ganZhi || '--'}（{baziData.naYin?.month || '？'}）
+                        {' '}{baziData.dayPillar?.ganZhi || '--'}（{baziData.naYin?.day || '？'}）
+                        {' '}{baziData.hourPillar?.ganZhi || '--'}（{baziData.naYin?.hour || '？'}）
+                      </Text>
+                      {/* 日主+五行 */}
                       {baziData.wxStats?.dayWx ? (
-                        <Text style={styles.flowLine}>日主：{baziData.wxStats.dayWx}{baziData.wxStats.isStrong ? '偏旺' : '偏弱'} · 喜{baziData.wxStats.maxWx || '?'} 忌{baziData.wxStats.minWx || '?'}</Text>
+                        <Text style={styles.flowLine}>
+                          日主：{baziData.dayPillar?.ganName || '？'}{baziData.wxStats.dayWx}
+                          {baziData.wxStats.isStrong ? '偏旺' : '偏弱'}
+                          {' · '}喜用神{baziData.wxStats.maxWx || '？'} 忌神{baziData.wxStats.minWx || '？'}
+                          {' · '}五行能量：{baziData.wxStats.stats ? Object.entries(baziData.wxStats.stats).map(([k,v])=>`${k}${v}`).join(' ') : ''}
+                        </Text>
                       ) : null}
-                      {/* 十神布局 */}
+                      {/* 十二长生 */}
+                      {baziData.shiErChangSheng && baziData.shiErChangSheng.length > 0 ? (
+                        <Text style={styles.flowLine}>
+                          十二长生：年{baziData.shiErChangSheng[0]?.state || '？'}
+                          {' · '}月{baziData.shiErChangSheng[1]?.state || '？'}
+                          {' · '}日{baziData.shiErChangSheng[2]?.state || '？'}
+                          {' · '}时{baziData.shiErChangSheng[3]?.state || '？'}
+                        </Text>
+                      ) : null}
+                      {/* 天干十神 */}
                       {baziData.shiShen ? (
-                        <Text style={styles.flowLine}>十神：年{baziData.shiShen.year || '?'} 月{baziData.shiShen.month || '?'} 日{baziData.shiShen.day || '?'} 时{baziData.shiShen.hour || '?'}</Text>
+                        <Text style={styles.flowLine}>
+                          十神（天干）：年{baziData.shiShen.year || '？'}
+                          {' · '}月{baziData.shiShen.month || '？'}
+                          {' · '}日{baziData.shiShen.day || '？'}
+                          {' · '}时{baziData.shiShen.hour || '？'}
+                        </Text>
                       ) : null}
-                      {/* 大运信息 */}
+                      {/* 藏干十神 */}
+                      {baziData.cangGanShiShen ? (
+                        <Text style={styles.flowSmallLine}>
+                          藏干十神：{Object.entries(baziData.cangGanShiShen).map(([pillar, gans]) =>
+                            `${pillar}柱[${gans.map(g => g.gan + g.shiShen).join('/')}]`
+                          ).join(' ')}
+                        </Text>
+                      ) : null}
+                      {/* 空亡 */}
+                      {baziData.kongWang ? (
+                        <Text style={styles.flowLine}>空亡：{baziData.kongWang}</Text>
+                      ) : null}
+                      {/* 胎元+命宫 */}
+                      <View style={styles.flowInlineRow}>
+                        {baziData.taiYuan ? (
+                          <Text style={styles.flowLine}>胎元：{baziData.taiYuan.ganZhi}（{baziData.taiYuan.naYin || '？'}）</Text>
+                        ) : null}
+                        {baziData.mingGong ? (
+                          <Text style={styles.flowLine}>　命宫：{baziData.mingGong.ganZhi}（{baziData.mingGong.naYin || '？'}）</Text>
+                        ) : null}
+                      </View>
+                      {/* 本命神煞（取前6个） */}
+                      {baziData.shenSha ? (
+                        <Text style={styles.flowSmallLine}>
+                          神煞：{Object.entries(baziData.shenSha).slice(0, 6).map(([name, info]) =>
+                            `${name}(${info.type}${info.position ? `·${info.position}` : ''})`
+                          ).join(' ')}
+                          {Object.keys(baziData.shenSha).length > 6 ? '...' : ''}
+                        </Text>
+                      ) : null}
+
+                      {/* ──── 二、大运 ──── */}
                       {baziData.currentDaYun && baziData.currentDaYun.length > 0 ? (
-                        <Text style={styles.flowLine}>大运：{baziData.currentDaYun.map(d => d.yunGanZhi).join(' → ')}</Text>
+                        <>
+                          <Text style={styles.flowSecTitle}>🏃 大运（{baziData.daYun?.direction === '顺排' ? '顺排' : '逆排'}）</Text>
+                          {baziData.qiYunAge ? (
+                            <Text style={styles.flowSmallLine}>起运年龄：{baziData.qiYunAge.age}岁{baziData.qiYunAge.months ? `${baziData.qiYunAge.months}个月` : ''}</Text>
+                          ) : null}
+                          {baziData.currentDaYun.map((dy, i) => (
+                            <Text key={i} style={styles.flowSmallLine}>
+                              {i + 1}. {dy.yunGanZhi || dy.ganZhi}（{dy.naYin || '？'}）{dy.fromAge && dy.toAge ? ` ${dy.fromAge}-${dy.toAge}岁` : ''}{dy.fromYear && dy.toYear ? ` [${dy.fromYear}-${dy.toYear}]` : ''}
+                            </Text>
+                          ))}
+                        </>
                       ) : null}
+
+                      {/* ──── 三、流年 ──── */}
+                      {baziData.liuNian ? (
+                        <>
+                          <Text style={styles.flowSecTitle}>🌟 流年【{baziData.liuNian.year}年】</Text>
+                          <Text style={styles.flowLine}>
+                            干支：{baziData.liuNian.ganZhi || '？'}
+                            {' · '}生肖：{baziData.liuNian.shengXiao || '？'}
+                            {' · '}纳音：{baziData.liuNian.naYin || '？'}
+                          </Text>
+                          <Text style={styles.flowSmallLine}>
+                            五行：{baziData.liuNian.wuXing || '？'}
+                            {' · '}十神：{baziData.liuNian.shiShen || '？'}
+                          </Text>
+                          {/* 流年神煞 */}
+                          {baziData.liuShenSha?.year ? (
+                            <Text style={styles.flowSmallLine}>
+                              神煞：{Object.entries(baziData.liuShenSha.year).map(([name, info]) =>
+                                `${name}(${info.type})`
+                              ).join('、')}
+                            </Text>
+                          ) : null}
+                        </>
+                      ) : null}
+
+                      {/* ──── 四、流月 + 流日 ──── */}
+                      {baziData.liuRiShen?.todayPillars ? (
+                        <>
+                          <Text style={styles.flowSecTitle}>📆 本月 · 今日</Text>
+                          {/* 流月 */}
+                          <Text style={styles.flowLine}>
+                            流月：{baziData.liuRiShen.todayPillars.month?.gan || '？'}{baziData.liuRiShen.todayPillars.month?.zhi || '？'}
+                          </Text>
+                          {/* 流月神煞 */}
+                          {baziData.liuShenSha?.month ? (
+                            <Text style={styles.flowSmallLine}>
+                              神煞：{Object.entries(baziData.liuShenSha.month).map(([name, info]) =>
+                                `${name}(${info.type})`
+                              ).join('、')}
+                            </Text>
+                          ) : null}
+                          {/* 流日 */}
+                          <Text style={styles.flowLine}>
+                            流日：{baziData.liuRiShen.todayPillars.day?.gan || '？'}{baziData.liuRiShen.todayPillars.day?.zhi || '？'}
+                          </Text>
+                          {/* 流日神煞 */}
+                          {baziData.liuShenSha?.day ? (
+                            <Text style={styles.flowSmallLine}>
+                              神煞：{Object.entries(baziData.liuShenSha.day).map(([name, info]) =>
+                                `${name}(${info.type})`
+                              ).join('、')}
+                            </Text>
+                          ) : null}
+                        </>
+                      ) : null}
+
                     </View>
                   </View>
 
@@ -728,6 +851,9 @@ const styles = StyleSheet.create({
   flowLocalDate: { fontSize: 11, color: colors.textMuted, marginBottom: 8 },
   flowLocalBody: {},
   flowLine: { fontSize: 13, color: colors.text, lineHeight: 20 },
+  flowSmallLine: { fontSize: 11, color: colors.textDim, lineHeight: 17, marginLeft: 4, marginTop: 1 },
+  flowSecTitle: { fontSize: 13, fontWeight: '700', color: colors.primary, marginTop: 8, marginBottom: 3, borderBottomWidth: 1, borderBottomColor: colors.border + '66', paddingBottom: 2 },
+  flowInlineRow: { flexDirection: 'row', flexWrap: 'wrap' },
   flowQuotaRow: {
     flexDirection: 'row', justifyContent: 'space-between',
     paddingVertical: 8, paddingHorizontal: 4, marginBottom: 10,
