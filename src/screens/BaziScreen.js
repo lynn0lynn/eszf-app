@@ -484,88 +484,21 @@ export default function BaziScreen({ navigation }) {
                     <Text style={styles.flowTopicText}>{flowInfoType === 'health' ? '健康养生' : flowInfoType === 'career' ? '事业学业' : flowInfoType === 'marriage' ? '婚姻感情' : flowInfoType === 'children' ? '六亲眷属' : '亨通聚富'}</Text>
                   </View>
 
-                  {/* ===== 流运信息（完整数据） ===== */}
+                  {/* ===== 流运信息 ===== */}
                   <View style={styles.flowLocalData}>
                     <Text style={styles.flowLocalTitle}>📅 今日流运 · {new Date().toLocaleDateString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' })}</Text>
                     <View style={styles.flowLocalBody}>
 
-                      {/* ──── 一、本命信息 ──── */}
-                      <Text style={styles.flowSecTitle}>🏠 本命信息</Text>
-                      {/* 四柱+纳音 */}
-                      <Text style={styles.flowLine}>
-                        四柱：{baziData.yearPillar?.ganZhi || '--'}（{baziData.naYin?.year || '？'}）
-                        {' '}{baziData.monthPillar?.ganZhi || '--'}（{baziData.naYin?.month || '？'}）
-                        {' '}{baziData.dayPillar?.ganZhi || '--'}（{baziData.naYin?.day || '？'}）
-                        {' '}{baziData.hourPillar?.ganZhi || '--'}（{baziData.naYin?.hour || '？'}）
-                      </Text>
-                      {/* 日主+五行 */}
-                      {baziData.wxStats?.dayWx ? (
-                        <Text style={styles.flowLine}>
-                          日主：{baziData.dayPillar?.ganName || '？'}{baziData.wxStats.dayWx}
-                          {baziData.wxStats.isStrong ? '偏旺' : '偏弱'}
-                          {' · '}喜用神{baziData.wxStats.maxWx || '？'} 忌神{baziData.wxStats.minWx || '？'}
-                          {' · '}五行能量：{baziData.wxStats.stats ? Object.entries(baziData.wxStats.stats).map(([k,v])=>`${k}${v}`).join(' ') : ''}
-                        </Text>
-                      ) : null}
-                      {/* 十二长生 */}
-                      {baziData.shiErChangSheng && baziData.shiErChangSheng.length > 0 ? (
-                        <Text style={styles.flowLine}>
-                          十二长生：年{baziData.shiErChangSheng[0]?.state || '？'}
-                          {' · '}月{baziData.shiErChangSheng[1]?.state || '？'}
-                          {' · '}日{baziData.shiErChangSheng[2]?.state || '？'}
-                          {' · '}时{baziData.shiErChangSheng[3]?.state || '？'}
-                        </Text>
-                      ) : null}
-                      {/* 天干十神 */}
-                      {baziData.shiShen ? (
-                        <Text style={styles.flowLine}>
-                          十神（天干）：年{baziData.shiShen.year || '？'}
-                          {' · '}月{baziData.shiShen.month || '？'}
-                          {' · '}日{baziData.shiShen.day || '？'}
-                          {' · '}时{baziData.shiShen.hour || '？'}
-                        </Text>
-                      ) : null}
-                      {/* 藏干十神 */}
-                      {baziData.cangGanShiShen ? (
-                        <Text style={styles.flowSmallLine}>
-                          藏干十神：{Object.entries(baziData.cangGanShiShen).map(([pillar, gans]) =>
-                            `${pillar}柱[${gans.map(g => g.gan + g.shiShen).join('/')}]`
-                          ).join(' ')}
-                        </Text>
-                      ) : null}
-                      {/* 空亡 */}
-                      {baziData.kongWang ? (
-                        <Text style={styles.flowLine}>空亡：{baziData.kongWang}</Text>
-                      ) : null}
-                      {/* 胎元+命宫 */}
-                      <View style={styles.flowInlineRow}>
-                        {baziData.taiYuan ? (
-                          <Text style={styles.flowLine}>胎元：{baziData.taiYuan.ganZhi}（{baziData.taiYuan.naYin || '？'}）</Text>
-                        ) : null}
-                        {baziData.mingGong ? (
-                          <Text style={styles.flowLine}>　命宫：{baziData.mingGong.ganZhi}（{baziData.mingGong.naYin || '？'}）</Text>
-                        ) : null}
-                      </View>
-                      {/* 本命神煞（取前6个） */}
-                      {baziData.shenSha ? (
-                        <Text style={styles.flowSmallLine}>
-                          神煞：{Object.entries(baziData.shenSha).slice(0, 6).map(([name, info]) =>
-                            `${name}(${info.type}${info.position ? `·${info.position}` : ''})`
-                          ).join(' ')}
-                          {Object.keys(baziData.shenSha).length > 6 ? '...' : ''}
-                        </Text>
-                      ) : null}
+                      {/* ──── 一、本命（精简：仅四柱） ──── */}
+                      <Text style={styles.flowLine}>本命：{baziData.yearPillar?.ganZhi || '--'} {baziData.monthPillar?.ganZhi || '--'} {baziData.dayPillar?.ganZhi || '--'} {baziData.hourPillar?.ganZhi || '--'}</Text>
 
                       {/* ──── 二、大运 ──── */}
                       {baziData.currentDaYun && baziData.currentDaYun.length > 0 ? (
                         <>
-                          <Text style={styles.flowSecTitle}>🏃 大运（{baziData.daYun?.direction === '顺排' ? '顺排' : '逆排'}）</Text>
-                          {baziData.qiYunAge ? (
-                            <Text style={styles.flowSmallLine}>起运年龄：{baziData.qiYunAge.age}岁{baziData.qiYunAge.months ? `${baziData.qiYunAge.months}个月` : ''}</Text>
-                          ) : null}
-                          {baziData.currentDaYun.map((dy, i) => (
+                          <Text style={styles.flowSecTitle}>🏃 大运（{baziData.daYun?.direction === '顺排' ? '顺排' : '逆排'}）{baziData.qiYunAge ? `· 起运${baziData.qiYunAge.age}岁` : ''}</Text>
+                          {baziData.currentDaYun.slice(0, 8).map((dy, i) => (
                             <Text key={i} style={styles.flowSmallLine}>
-                              {i + 1}. {dy.yunGanZhi || dy.ganZhi}（{dy.naYin || '？'}）{dy.fromAge && dy.toAge ? ` ${dy.fromAge}-${dy.toAge}岁` : ''}{dy.fromYear && dy.toYear ? ` [${dy.fromYear}-${dy.toYear}]` : ''}
+                              {i + 1}. {dy.yunGanZhi || dy.ganZhi}（{dy.naYin || '？'}）{dy.fromAge && dy.toAge ? ` ${dy.fromAge}-${dy.toAge}岁` : ''}
                             </Text>
                           ))}
                         </>
@@ -576,19 +509,14 @@ export default function BaziScreen({ navigation }) {
                         <>
                           <Text style={styles.flowSecTitle}>🌟 流年【{baziData.liuNian.year}年】</Text>
                           <Text style={styles.flowLine}>
-                            干支：{baziData.liuNian.ganZhi || '？'}
-                            {' · '}生肖：{baziData.liuNian.shengXiao || '？'}
-                            {' · '}纳音：{baziData.liuNian.naYin || '？'}
-                          </Text>
-                          <Text style={styles.flowSmallLine}>
-                            五行：{baziData.liuNian.wuXing || '？'}
-                            {' · '}十神：{baziData.liuNian.shiShen || '？'}
+                            {baziData.liuNian.ganZhi || '？'} · {baziData.liuNian.shengXiao || '？'} · 纳音{baziData.liuNian.naYin || '？'}
+                            {' · '}五行{baziData.liuNian.wuXing || '？'} · 十神{baziData.liuNian.shiShen || '？'}
                           </Text>
                           {/* 流年神煞 */}
                           {baziData.liuShenSha?.year ? (
                             <Text style={styles.flowSmallLine}>
                               神煞：{Object.entries(baziData.liuShenSha.year).map(([name, info]) =>
-                                `${name}(${info.type})`
+                                `${name}（${info.type}）`
                               ).join('、')}
                             </Text>
                           ) : null}
@@ -606,8 +534,8 @@ export default function BaziScreen({ navigation }) {
                           {/* 流月神煞 */}
                           {baziData.liuShenSha?.month ? (
                             <Text style={styles.flowSmallLine}>
-                              神煞：{Object.entries(baziData.liuShenSha.month).map(([name, info]) =>
-                                `${name}(${info.type})`
+                              流月神煞：{Object.entries(baziData.liuShenSha.month).map(([name, info]) =>
+                                `${name}（${info.type}）`
                               ).join('、')}
                             </Text>
                           ) : null}
@@ -618,8 +546,8 @@ export default function BaziScreen({ navigation }) {
                           {/* 流日神煞 */}
                           {baziData.liuShenSha?.day ? (
                             <Text style={styles.flowSmallLine}>
-                              神煞：{Object.entries(baziData.liuShenSha.day).map(([name, info]) =>
-                                `${name}(${info.type})`
+                              流日神煞：{Object.entries(baziData.liuShenSha.day).map(([name, info]) =>
+                                `${name}（${info.type}）`
                               ).join('、')}
                             </Text>
                           ) : null}
