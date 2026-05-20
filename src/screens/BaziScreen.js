@@ -61,7 +61,7 @@ function getBaziId(bazi) {
   return 'bz_' + Math.abs(hash).toString(36);
 }
 
-export default function BaziScreen({ navigation }) {
+export default function BaziScreen({ navigation, route }) {
   const [name, setName] = useState('');
   const [gender, setGender] = useState('男');
   const [birthDate, setBirthDate] = useState(getToday());
@@ -106,6 +106,34 @@ export default function BaziScreen({ navigation }) {
       }
     })();
   }, []);
+
+  // 处理排盘记录跳转：预填表单后自动排盘
+  const pendingCalcRef = useRef(false);
+  React.useEffect(() => {
+    (async () => {
+      const record = route?.params?.historyRecord;
+      if (!record) return;
+      setName(record.name || '');
+      setGender(record.gender || '男');
+      setBirthDate(record.birth_date?.substring(0, 10) || getToday());
+      setHour(String(record.birth_hour ?? 12));
+      setMinute(String(record.birth_minute ?? 0));
+      setProvince(record.province || '北京');
+      setCity(record.city || (record.province ? record.province + '市' : '北京市'));
+      // 清除params避免下次导航重复触发
+      navigation.setParams({ historyRecord: undefined });
+      pendingCalcRef.current = true;
+    })();
+  }, [route?.params?.historyRecord]);
+
+  // 等状态更新后自动排盘
+  React.useEffect(() => {
+    if (pendingCalcRef.current) {
+      pendingCalcRef.current = false;
+      const timer = setTimeout(() => handleCalc(), 100);
+      return () => clearTimeout(timer);
+    }
+  }, [name, gender, birthDate, hour, minute, province, city]);
 
   // 排盘
   async function handleCalc() {

@@ -23,14 +23,12 @@ export default function PaymentModal({ visible, onClose, onSuccess }) {
     setPaying(true);
     try {
       const data = await api.createOrder(pkgId);
-      // 从响应中提取支付宝支付URL
-      let payUrl = '';
-      if (typeof data.payHtml === 'string') {
-        // GET模式：payHtml 就是完整的支付宝URL
+      // 优先使用 payUrl（后端拼接的完整跳转URL），兼容旧 payHtml
+      let payUrl = data.payUrl || '';
+      if (!payUrl && typeof data.payHtml === 'string') {
         if (data.payHtml.startsWith('http')) {
           payUrl = data.payHtml;
         } else {
-          // POST模式：从form的action属性提取URL
           const match = data.payHtml.match(/action="([^"]+)"/);
           if (match) {
             payUrl = match[1].replace(/&amp;/g, '&');

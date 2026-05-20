@@ -167,7 +167,8 @@ export default function ProfileScreen({ navigation, onLogout }) {
           <ActivityIndicator size="small" color={colors.primary} />
         ) : baziHistory.length > 0 ? (
           baziHistory.map((r, i) => (
-            <View key={r.id} style={styles.historyItem}>
+            <TouchableOpacity key={r.id} style={styles.historyItem}
+              onPress={() => navigation.navigate('Bazi', { historyRecord: r })}>
               <View style={styles.historyLeft}>
                 <Text style={styles.historyName}>{r.name || '未命名'}</Text>
                 <Text style={styles.historyInfo}>
@@ -176,7 +177,7 @@ export default function ProfileScreen({ navigation, onLogout }) {
                 <Text style={styles.historyPlace}>{r.province}{r.city ? ' · ' + r.city.replace('市','') : ''}</Text>
               </View>
               <Text style={styles.historyDate}>{r.created_at?.substring(0, 10)}</Text>
-            </View>
+            </TouchableOpacity>
           ))
         ) : (
           <Text style={styles.noData}>暂无排盘记录</Text>
