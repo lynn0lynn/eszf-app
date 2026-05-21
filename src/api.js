@@ -68,7 +68,7 @@ export const api = {
 
   // 充值
   createOrder: (packageId) =>
-    request('POST', '/alipay/create-order', { packageId, source: 'app' }, true),
+    request('POST', '/alipay/create-order', { packageId, source: 'web' }, true),
 
   getPackages: () =>
     request('GET', '/interact/packages'),

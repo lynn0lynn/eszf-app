@@ -23,16 +23,11 @@ export default function PaymentModal({ visible, onClose, onSuccess }) {
     setPaying(true);
     try {
       const data = await api.createOrder(pkgId);
-      // 优先使用 payUrl（后端拼接的完整跳转URL），兼容旧 payHtml
+      // 后端直接返回payUrl（完整支付宝跳转链接）
       let payUrl = data.payUrl || '';
       if (!payUrl && typeof data.payHtml === 'string') {
         if (data.payHtml.startsWith('http')) {
           payUrl = data.payHtml;
-        } else {
-          const match = data.payHtml.match(/action="([^"]+)"/);
-          if (match) {
-            payUrl = match[1].replace(/&amp;/g, '&');
-          }
         }
       }
       if (payUrl) {
