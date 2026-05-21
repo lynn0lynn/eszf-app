@@ -285,8 +285,12 @@ export default function BaziScreen({ navigation, route }) {
     setFlowQuestion('');
     setFlowLoading(true);
     try {
-      const data = await api.customAsk(question, '', getBaziId(baziData), baziData, chargeType);
+      // 获取最近一条AI回答作为上下文，保证对话连续性
+      const lastAiResult = [...flowHistory].reverse().find(i => i.type === 'answer');
+      const context = lastAiResult ? lastAiResult.content : aiResult || '';
+      const data = await api.customAsk(question, context, getBaziId(baziData), baziData, chargeType);
       setFlowHistory(prev => [...prev, { type: 'answer', content: data.answer || '暂无结果' }]);
+      setAiResult(data.answer || ''); // 供关闭flowCard后独立追问使用
       if (isLoggedIn) {
         try { const q = await api.getQuota(getBaziId(baziData)); setQuota(q); } catch (e) {}
       }
@@ -699,8 +703,8 @@ export default function BaziScreen({ navigation, route }) {
                 </View>
               ) : null}
 
-              {/* 追问输入 */}
-              {isLoggedIn ? (
+              {/* 追问输入 — flowCard关闭时显示 */}
+              {!flowInfoType && isLoggedIn ? (
                 <View style={styles.followUpBox}>
                   <Text style={styles.followUpTitle}>💬 追问</Text>
                   <TextInput ref={followUpRef} style={styles.followUpInput}
