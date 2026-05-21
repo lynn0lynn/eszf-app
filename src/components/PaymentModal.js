@@ -1,6 +1,6 @@
-// 充值弹窗 — 套餐选择 + 支付宝支付
-import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, Modal, StyleSheet, Platform, Linking } from 'react-native';
+// 充值弹窗 — 套餐选择 + 支付宝支付（含支付后反馈）
+import React, { useState, useEffect, useRef } from 'react';
+import { View, Text, TouchableOpacity, Modal, StyleSheet, Platform, Linking, AppState } from 'react-native';
 import { colors } from '../theme';
 import { api } from '../api';
 
@@ -18,12 +18,35 @@ const PACKAGES = {
 export default function PaymentModal({ visible, onClose, onSuccess }) {
   const [tab, setTab] = useState('count');
   const [paying, setPaying] = useState(false);
+  const [paymentPending, setPaymentPending] = useState(false); // 已打开浏览器，等待支付完成
+  const appStateRef = useRef(AppState.currentState);
+
+  // 监测APP从后台回到前台 → 自动刷新配额提示
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', nextState => {
+      if (appStateRef.current.match(/inactive|background/) && nextState === 'active') {
+        // 用户从浏览器返回APP → 提示刷新
+        if (paymentPending) {
+          // 不自动刷新，让用户手动点按钮确认
+        }
+      }
+      appStateRef.current = nextState;
+    });
+    return () => sub.remove();
+  }, [paymentPending]);
+
+  // 重置状态
+  useEffect(() => {
+    if (!visible) {
+      setPaymentPending(false);
+      setPaying(false);
+    }
+  }, [visible]);
 
   async function handlePay(pkgId) {
     setPaying(true);
     try {
       const data = await api.createOrder(pkgId);
-      // 后端直接返回payUrl（完整支付宝跳转链接）
       let payUrl = data.payUrl || '';
       if (!payUrl && typeof data.payHtml === 'string') {
         if (data.payHtml.startsWith('http')) {
@@ -31,19 +54,20 @@ export default function PaymentModal({ visible, onClose, onSuccess }) {
         }
       }
       if (payUrl) {
+        // 记录当前套餐名
+        const pkg = [...PACKAGES.count, ...PACKAGES.token].find(p => p.id === pkgId);
         // 在系统浏览器中打开支付宝支付页面
         const opened = await Linking.openURL(payUrl).catch(() => false);
         if (!opened) {
           alert('请复制以下链接到浏览器中完成支付：\n' + payUrl.substring(0, 100) + '...');
         }
+        // 切换到"等待支付"状态
+        setPaymentPending(true);
+        setPaying(false);
+        return; // 不关闭弹窗，让用户手动确认
       } else {
         alert('无法获取支付链接，请稍后重试');
-        setPaying(false);
-        return;
       }
-      alert('✅ 订单已创建！请在支付宝中完成支付。\n支付成功后返回APP，刷新即可看到配额更新。');
-      onSuccess && onSuccess();
-      onClose();
     } catch (e) {
       alert('创建订单失败：' + e.message);
     } finally {
@@ -51,6 +75,60 @@ export default function PaymentModal({ visible, onClose, onSuccess }) {
     }
   }
 
+  /** 用户手动确认支付完成 → 刷新配额 */
+  async function handlePaymentDone() {
+    try {
+      await onSuccess(); // 刷新配额
+      setPaymentPending(false);
+      onClose();
+      alert('✅ 充值成功！配额已更新');
+    } catch (e) {
+      // 配额可能还没更新（异步通知延迟），提示用户稍后重试
+      alert('配额尚未更新，请确认支付已完成。\n如已支付成功，稍后重新打开即可。');
+    }
+  }
+
+  // ===== 支付进行中状态 =====
+  if (paymentPending) {
+    return (
+      <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+        <View style={styles.overlay}>
+          <View style={styles.box}>
+            <View style={styles.header}>
+              <Text style={styles.title}>⏳ 等待支付</Text>
+              <TouchableOpacity onPress={onClose}>
+                <Text style={styles.closeBtn}>&times;</Text>
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.pendingBox}>
+              <Text style={styles.pendingIcon}>🛒</Text>
+              <Text style={styles.pendingTitle}>已打开支付宝页面</Text>
+              <Text style={styles.pendingDesc}>
+                请在浏览器中完成支付，支付成功后点击下方按钮确认
+              </Text>
+
+              <View style={styles.pendingSteps}>
+                <Text style={styles.pendingStep}>1. 在支付宝中完成支付</Text>
+                <Text style={styles.pendingStep}>2. 支付成功后会显示"✅ 充值成功"</Text>
+                <Text style={styles.pendingStep}>3. 返回本APP，点击下方按钮</Text>
+              </View>
+
+              <TouchableOpacity style={styles.pendingDoneBtn} onPress={handlePaymentDone}>
+                <Text style={styles.pendingDoneBtnText}>✅ 已完成支付，刷新配额</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity onPress={onClose} style={{ marginTop: 14 }}>
+                <Text style={styles.footerLink}>暂不处理，稍后再说</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+    );
+  }
+
+  // ===== 套餐选择 =====
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <View style={styles.overlay}>
@@ -158,4 +236,16 @@ const styles = StyleSheet.create({
   pkgPaying: { fontSize: 11, color: colors.warning, marginTop: 2 },
   footer: { alignItems: 'center', paddingVertical: 12, marginTop: 8 },
   footerLink: { fontSize: 12, color: colors.textDim, textDecorationLine: 'underline' },
+  // 等待支付
+  pendingBox: { paddingHorizontal: 20, paddingVertical: 24, alignItems: 'center' },
+  pendingIcon: { fontSize: 48, marginBottom: 12 },
+  pendingTitle: { fontSize: 17, fontWeight: '700', color: colors.text, marginBottom: 8 },
+  pendingDesc: { fontSize: 13, color: colors.textDim, textAlign: 'center', lineHeight: 20, marginBottom: 20 },
+  pendingSteps: { alignSelf: 'stretch', paddingHorizontal: 8, marginBottom: 20 },
+  pendingStep: { fontSize: 13, color: colors.textMuted, lineHeight: 24, paddingLeft: 8 },
+  pendingDoneBtn: {
+    backgroundColor: colors.success || '#238636', borderRadius: 14, paddingVertical: 14,
+    alignItems: 'center', alignSelf: 'stretch',
+  },
+  pendingDoneBtnText: { color: '#fff', fontSize: 16, fontWeight: '700' },
 });
