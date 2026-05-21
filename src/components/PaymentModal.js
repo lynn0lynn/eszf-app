@@ -75,17 +75,24 @@ export default function PaymentModal({ visible, onClose, onSuccess }) {
     }
   }
 
-  /** 用户手动确认支付完成 → 刷新配额 */
+  /** 用户手动确认支付完成 → 刷新配额（带重试，应对异步通知延迟） */
   async function handlePaymentDone() {
-    try {
-      await onSuccess(); // 刷新配额
-      setPaymentPending(false);
-      onClose();
-      alert('✅ 充值成功！配额已更新');
-    } catch (e) {
-      // 配额可能还没更新（异步通知延迟），提示用户稍后重试
-      alert('配额尚未更新，请确认支付已完成。\n如已支付成功，稍后重新打开即可。');
+    // 最多重试5次，每次等2秒
+    for (let i = 0; i < 5; i++) {
+      try {
+        await onSuccess(); // 刷新配额
+        setPaymentPending(false);
+        onClose();
+        alert('✅ 充值成功！配额已更新');
+        return;
+      } catch (e) {
+        if (i < 4) {
+          await new Promise(r => setTimeout(r, 2000)); // 等2秒再试
+        }
+      }
     }
+    // 5次都失败
+    alert('配额尚未更新，请确认支付已完成。\n如已支付成功，稍后重新刷新即可。');
   }
 
   // ===== 支付进行中状态 =====
