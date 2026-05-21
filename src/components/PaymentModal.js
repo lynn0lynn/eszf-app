@@ -10,8 +10,8 @@ const PACKAGES = {
     { id: 'count_30', name: '30次包',  price: 10.00, unit: '次',  quantity: 30   },
   ],
   token: [
-    { id: 'token_1m',  name: '100万包',   price: 30.00,  unit: 'Token', quantity: 1000000  },
-    { id: 'token_10m', name: '1000万包',  price: 100.00, unit: 'Token', quantity: 10000000 },
+    { id: 'token_1m',  name: '100万包',      price: 30.00, unit: 'Tokens', quantity: 1000000  },
+    { id: 'token_10m', name: '🎉 限时特价 1000万包', price: 50.00, unit: 'Tokens', quantity: 10000000 },
   ],
 };
 
@@ -80,7 +80,7 @@ export default function PaymentModal({ visible, onClose, onSuccess }) {
               style={[styles.tab, tab === 'token' && styles.tabActive]}
               onPress={() => setTab('token')}
             >
-              <Text style={[styles.tabText, tab === 'token' && styles.tabTextActive]}>⚡ Token</Text>
+              <Text style={[styles.tabText, tab === 'token' && styles.tabTextActive]}>⚡ Tokens</Text>
             </TouchableOpacity>
           </View>
 

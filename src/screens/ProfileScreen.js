@@ -146,11 +146,11 @@ export default function ProfileScreen({ navigation, onLogout }) {
               </View>
               <View style={styles.quotaItem}>
                 <Text style={styles.quotaValue}>{((quota.remaining_tokens || 0) / 10000).toFixed(1)}万</Text>
-                <Text style={styles.quotaLabel}>剩余Token</Text>
+                <Text style={styles.quotaLabel}>剩余Tokens</Text>
               </View>
               <View style={styles.quotaItem}>
                 <Text style={styles.quotaValue}>{((quota.total_tokens || 0) / 10000).toFixed(1)}万</Text>
-                <Text style={styles.quotaLabel}>总购买Token</Text>
+                <Text style={styles.quotaLabel}>总购买Tokens</Text>
               </View>
             </View>
             <Text style={styles.freeNote}>🎯 每个八字首次3次免费，之后每天1次免费</Text>

@@ -55,12 +55,12 @@ export const api = {
     request('POST', '/bazi/mobile-calc', { birthDate, lng, lat, gender, name }, true), // 带auth用于检测是否已有记录
 
   // 五问 AI
-  aiAsk: (baziData, questionType, backgroundContext, free = false) =>
-    request('POST', '/bazi/ai-ask', { baziData, questionType, backgroundContext, free }, true),
+  aiAsk: (baziData, questionType, backgroundContext, free = false, chargeType = null) =>
+    request('POST', '/bazi/ai-ask', { baziData, questionType, backgroundContext, free, chargeType }, true),
 
   // 追问
-  customAsk: (question, backgroundContext, baziId, baziData) =>
-    request('POST', '/interact/custom-ask', { question, backgroundContext, baziId, baziData }, true),
+  customAsk: (question, backgroundContext, baziId, baziData, chargeType = null) =>
+    request('POST', '/interact/custom-ask', { question, backgroundContext, baziId, baziData, chargeType }, true),
 
   // 配额
   getQuota: (baziId) =>
@@ -68,7 +68,7 @@ export const api = {
 
   // 充值
   createOrder: (packageId) =>
-    request('POST', '/alipay/create-order', { packageId }, true),
+    request('POST', '/alipay/create-order', { packageId, source: 'app' }, true),
 
   getPackages: () =>
     request('GET', '/interact/packages'),

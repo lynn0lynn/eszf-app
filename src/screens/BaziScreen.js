@@ -2,7 +2,7 @@
 import React, { useState, useRef } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, ScrollView,
-  StyleSheet, Platform, KeyboardAvoidingView, Modal, Alert,
+  StyleSheet, Platform, KeyboardAvoidingView, Alert,
 } from 'react-native';
 import { colors } from '../theme';
 import { api } from '../api';
@@ -80,16 +80,16 @@ export default function BaziScreen({ navigation, route }) {
   const [aiTitle, setAiTitle] = useState('');
   const [quota, setQuota] = useState(null);
   const [followUpText, setFollowUpText] = useState('');
-  const [followUpResult, setFollowUpResult] = useState(null);
-  const [showFreeAsk, setShowFreeAsk] = useState(false);
-  const [freeAskText, setFreeAskText] = useState('');
-  const [freeAskResult, setFreeAskResult] = useState(null);
+  // 追问历史（非五问区底部追问）
+  const [followUpHistory, setFollowUpHistory] = useState([]); // [{type:'question'|'answer', content}]
+  const [followUpLoading, setFollowUpLoading] = useState(false);
   // 五问本地流运展示
   const [flowInfoType, setFlowInfoType] = useState(null); // 当前选中的五问类型
   const [flowQuestion, setFlowQuestion] = useState('');   // 用户输入的问题
-  const [flowResult, setFlowResult] = useState(null);      // AI回答
+  const [flowHistory, setFlowHistory] = useState([]);      // [{type:'question'|'answer', content}] 全部问答历史
   const [flowLoading, setFlowLoading] = useState(false);   // AI加载中
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [chargeType, setChargeType] = useState('count');
   const scrollRef = useRef(null);
   const followUpRef = useRef(null);
 
@@ -98,6 +98,9 @@ export default function BaziScreen({ navigation, route }) {
     (async () => {
       const token = await storage.getToken();
       setIsLoggedIn(!!token);
+      // 加载用户偏好：扣费方式
+      const ct = await storage.getChargeType();
+      setChargeType(ct);
       if (token) {
         try {
           const user = await api.getMe();
@@ -142,7 +145,8 @@ export default function BaziScreen({ navigation, route }) {
     setLoadText('正在推算八字...');
     setBaziData(null);
     setAiResult(null);
-    setFollowUpResult(null);
+    setFollowUpHistory([]);
+    setFollowUpText('');
     try {
       const coords = getCoords(province, city);
       const hh = String(Math.min(Math.max(parseInt(hour) || 12, 0), 23)).padStart(2,'0');
@@ -211,18 +215,10 @@ export default function BaziScreen({ navigation, route }) {
     }
     if (!baziData) return;
 
-    // 自由问答(第6个) → 直接弹输入框
-    if (type === 'freeask') {
-      setShowFreeAsk(true);
-      return;
-    }
-
     // 前5个 → 展示流运信息 + 用户可自由提问
     setFlowInfoType(type);
     setAiResult(null);
-    setFollowUpResult(null);
-    setFreeAskResult(null);
-    setFlowResult(null);
+    setFlowHistory([]);
     setFlowQuestion('');
     setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 300);
   }
@@ -242,16 +238,22 @@ export default function BaziScreen({ navigation, route }) {
       children: { label: '六亲眷属', icon: '👨‍👩‍👧‍👦' },
       decision: { label: '亨通聚富', icon: '💰' },
     };
+    const info = labels[flowInfoType] || { label: '分析', icon: '🔮' };
 
+    // 追加问题标记到历史
+    setFlowHistory(prev => [...prev, { type: 'question', content: `🤖 ${info.icon} AI分析${info.label}` }]);
     setFlowLoading(true);
     try {
-      const data = await api.aiAsk(baziData, type, '', true); // free=true 不扣费
-      setFlowResult(data.result);
+      const data = await api.aiAsk(baziData, type, '', true, chargeType);
+      setFlowHistory(prev => [...prev, { type: 'answer', content: data.result || '暂无分析结果' }]);
+      setAiResult(data.result || ''); // 供底部追问使用
       if (isLoggedIn) {
         try { const q = await api.getQuota(getBaziId(baziData)); setQuota(q); } catch (e) {}
       }
-      setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 300);
+      // 回答出现后滚动到顶部，展示完整对话
+      setTimeout(() => scrollRef.current?.scrollTo({ y: 0, animated: true }), 500);
     } catch (e) {
+      setFlowHistory(prev => prev.slice(0, -1)); // 移除问题标记
       if (e.message === 'quota_exhausted') {
         setShowPayment(true);
       } else {
@@ -276,17 +278,22 @@ export default function BaziScreen({ navigation, route }) {
 
     // 构建问题上下文：带上选中的话题
     const question = `【${info.label}相关】${flowQuestion.trim()}`;
+    const qText = flowQuestion.trim();
 
+    // 追加问题到历史
+    setFlowHistory(prev => [...prev, { type: 'question', content: `💬 ${qText}` }]);
+    setFlowQuestion('');
     setFlowLoading(true);
     try {
-      const data = await api.customAsk(question, '', getBaziId(baziData), baziData);
-      setFlowResult(data.answer);
-      setFlowQuestion('');
+      const data = await api.customAsk(question, '', getBaziId(baziData), baziData, chargeType);
+      setFlowHistory(prev => [...prev, { type: 'answer', content: data.answer || '暂无结果' }]);
       if (isLoggedIn) {
         try { const q = await api.getQuota(getBaziId(baziData)); setQuota(q); } catch (e) {}
       }
-      setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 300);
+      // 回答后滚动到顶部
+      setTimeout(() => scrollRef.current?.scrollTo({ y: 0, animated: true }), 500);
     } catch (e) {
+      setFlowHistory(prev => prev.slice(0, -1)); // 移除问题标记
       if (e.message === 'quota_exhausted') {
         setShowPayment(true);
       } else {
@@ -313,61 +320,35 @@ export default function BaziScreen({ navigation, route }) {
       }
     }
 
-    setLoading(true);
-    setLoadText('正在追问...');
+    const qText = followUpText.trim();
+
+    // 追加问题到历史（内联加载，不用全屏LoadingModal）
+    setFollowUpHistory(prev => [...prev, { type: 'question', content: `💬 ${qText}` }]);
+    setFollowUpText('');
+    setFollowUpLoading(true);
     try {
       const data = await api.customAsk(
-        followUpText.trim(),
+        qText,
         aiResult || '',
         getBaziId(baziData),
-        baziData
+        baziData,
+        chargeType
       );
-      setFollowUpResult(data.answer);
-      setFollowUpText('');
+      setFollowUpHistory(prev => [...prev, { type: 'answer', content: data.answer || '暂无结果' }]);
       if (isLoggedIn) {
         try { const q = await api.getQuota(getBaziId(baziData)); setQuota(q); } catch (e) {}
       }
-      setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 300);
+      // 回答后滚动到顶部
+      setTimeout(() => scrollRef.current?.scrollTo({ y: 0, animated: true }), 500);
     } catch (e) {
+      setFollowUpHistory(prev => prev.slice(0, -1)); // 移除问题标记
       if (e.message === 'quota_exhausted') {
         setShowPayment(true);
       } else {
         alert('追问失败：' + e.message);
       }
     } finally {
-      setLoading(false);
-    }
-  }
-
-  // 自由问答
-  async function handleFreeAsk() {
-    if (!freeAskText.trim()) { alert('请输入你想问的问题'); return; }
-    if (!baziData) { alert('请先排盘'); return; }
-    setShowFreeAsk(false);
-    setLoading(true);
-    setLoadText('正在思考你的问题...');
-    setFreeAskResult(null);
-    try {
-      const data = await api.customAsk(
-        freeAskText.trim(),
-        '',
-        getBaziId(baziData),
-        baziData
-      );
-      setFreeAskResult(data.answer);
-      setFreeAskText('');
-      if (isLoggedIn) {
-        try { const q = await api.getQuota(getBaziId(baziData)); setQuota(q); } catch (e) {}
-      }
-      setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 300);
-    } catch (e) {
-      if (e.message === 'quota_exhausted') {
-        setShowPayment(true);
-      } else {
-        alert('自由问答失败：' + e.message);
-      }
-    } finally {
-      setLoading(false);
+      setFollowUpLoading(false);
     }
   }
 
@@ -401,7 +382,7 @@ export default function BaziScreen({ navigation, route }) {
           keyboardShouldPersistTaps="handled"
           automaticallyAdjustKeyboardInsets={true}
         >
-          {/* 配额栏 */}
+          {/* 配额栏 */ }
           {quota && isLoggedIn ? (
             <View style={styles.quotaBar}>
               <View style={styles.quotaRow}>
@@ -411,6 +392,20 @@ export default function BaziScreen({ navigation, route }) {
                 <TouchableOpacity style={styles.quotaRechargeBtn} onPress={() => setShowPayment(true)}>
                   <Text style={styles.quotaRechargeText}>💰 购买</Text>
                 </TouchableOpacity>
+              </View>
+              {/* 扣费方式选择 */ }
+              <View style={styles.chargeTypeRow}>
+                <TouchableOpacity
+                  style={[styles.chargeTypeBtn, chargeType === 'count' && styles.chargeTypeActive]}
+                  onPress={() => { setChargeType('count'); storage.setChargeType('count'); }}>
+                  <Text style={[styles.chargeTypeText, chargeType === 'count' && styles.chargeTypeTextActive]}>📦 次数</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.chargeTypeBtn, chargeType === 'token' && styles.chargeTypeActive]}
+                  onPress={() => { setChargeType('token'); storage.setChargeType('token'); }}>
+                  <Text style={[styles.chargeTypeText, chargeType === 'token' && styles.chargeTypeTextActive]}>⚡ Tokens</Text>
+                </TouchableOpacity>
+                <Text style={styles.chargeTypeHint}>扣费方式</Text>
               </View>
             </View>
           ) : null}
@@ -633,62 +628,79 @@ export default function BaziScreen({ navigation, route }) {
                     </View>
                   ) : null}
 
-                  {/* AI分析按钮（触发AI分析该话题） */}
-                  {flowLoading ? (
-                    <View style={styles.flowLoadingBox}>
-                      <Text style={styles.flowLoadingIcon}>🤖</Text>
-                      <Text style={styles.flowLoadingText}>AI分析中...</Text>
-                      <Text style={styles.flowLoadingSub}>正在结合八字+流运进行分析</Text>
-                    </View>
-                  ) : (
+                  {/* AI分析按钮 — 仅在没有问答历史时显示 */}
+                  {flowHistory.length === 0 && !flowLoading ? (
                     <TouchableOpacity style={styles.flowAiBtn} onPress={handleFlowAiAsk}>
                       <Text style={styles.flowAiBtnText}>🤖 AI深度分析{flowInfoType === 'health' ? '健康' : flowInfoType === 'career' ? '事业' : flowInfoType === 'marriage' ? '婚姻' : flowInfoType === 'children' ? '六亲' : '财运'}</Text>
                     </TouchableOpacity>
-                  )}
+                  ) : null}
 
-                  {/* AI回答结果 */}
-                  {flowResult ? (
-                    <>
-                      <AiResultBlock result={flowResult} title="🤖 AI分析结果" />
-                      {/* 自由提问框（AI结果下方） */}
-                      <View style={styles.flowFreeBox}>
-                        <Text style={styles.flowFreeLabel}>💬 还想问什么？自由提问</Text>
-                        <TextInput
-                          style={styles.flowInput}
-                          placeholder="输入你想追问的问题..."
-                          placeholderTextColor={colors.textMuted}
-                          value={flowQuestion}
-                          onChangeText={setFlowQuestion}
-                          multiline
-                          numberOfLines={2}
-                        />
-                        <TouchableOpacity style={styles.flowSendBtn} onPress={handleFlowSend}>
-                          <Text style={styles.flowSendText}>发送追问</Text>
-                        </TouchableOpacity>
+                  {/* 全部问答历史 */}
+                  {flowHistory.map((item, i) => (
+                    item.type === 'question' ? (
+                      <View key={i} style={styles.historyQuestion}>
+                        <Text style={styles.historyQuestionText}>{item.content}</Text>
                       </View>
-                    </>
+                    ) : (
+                      <AiResultBlock key={i} result={item.content} title="🤖 AI分析" />
+                    )
+                  ))}
+
+                  {/* AI思考中内联加载态 */}
+                  {flowLoading ? (
+                    <View style={styles.flowLoadingBox}>
+                      <Text style={styles.flowLoadingIcon}>🤖</Text>
+                      <Text style={styles.flowLoadingText}>AI深度解读中...</Text>
+                      <Text style={styles.flowLoadingSub}>正在结合八字+流运进行分析</Text>
+                    </View>
+                  ) : null}
+
+                  {/* 自由提问框 — 历史不为空时展示 */}
+                  {flowHistory.length > 0 ? (
+                    <View style={styles.flowFreeBox}>
+                      <Text style={styles.flowFreeLabel}>💬 还想问什么？自由提问</Text>
+                      <TextInput
+                        style={styles.flowInput}
+                        placeholder="输入你想追问的问题..."
+                        placeholderTextColor={colors.textMuted}
+                        value={flowQuestion}
+                        onChangeText={setFlowQuestion}
+                        multiline
+                        numberOfLines={2}
+                      />
+                      <TouchableOpacity style={styles.flowSendBtn} onPress={handleFlowSend} disabled={flowLoading}>
+                        <Text style={styles.flowSendText}>发送追问</Text>
+                      </TouchableOpacity>
+                    </View>
                   ) : null}
 
                   {/* 关闭按钮 */}
-                  <TouchableOpacity onPress={() => { setFlowInfoType(null); setFlowResult(null); setFlowQuestion(''); }}>
+                  <TouchableOpacity onPress={() => { setFlowInfoType(null); setFlowHistory([]); setFlowQuestion(''); }}>
                     <Text style={styles.flowCancel}>关闭</Text>
                   </TouchableOpacity>
                 </View>
               ) : null}
 
-              {/* AI结果 */}
-              {aiResult ? (
-                <AiResultBlock result={aiResult} title={aiTitle} />
-              ) : null}
-              {followUpResult ? (
-                <AiResultBlock result={followUpResult} title="💬 追问回答" />
-              ) : null}
-              {freeAskResult ? (
-                <AiResultBlock result={freeAskResult} title="💬 自由问答" />
+              {/* 追问结果历史 */}
+              {followUpHistory.map((item, i) => (
+                item.type === 'question' ? (
+                  <View key={i} style={styles.historyQuestion}>
+                    <Text style={styles.historyQuestionText}>{item.content}</Text>
+                  </View>
+                ) : (
+                  <AiResultBlock key={i} result={item.content} title="💬 追问回答" />
+                )
+              ))}
+
+              {/* 追问内联加载 */}
+              {followUpLoading ? (
+                <View style={styles.followUpLoadingBox}>
+                  <Text style={styles.followUpLoadingText}>🤖 思考中...</Text>
+                </View>
               ) : null}
 
               {/* 追问输入 */}
-              {aiResult && isLoggedIn ? (
+              {isLoggedIn ? (
                 <View style={styles.followUpBox}>
                   <Text style={styles.followUpTitle}>💬 追问</Text>
                   <TextInput ref={followUpRef} style={styles.followUpInput}
@@ -697,7 +709,7 @@ export default function BaziScreen({ navigation, route }) {
                     multiline numberOfLines={3}
                     returnKeyType="default"
                   />
-                  <TouchableOpacity style={styles.followUpBtn} onPress={handleFollowUp} disabled={loading}>
+                  <TouchableOpacity style={styles.followUpBtn} onPress={handleFollowUp} disabled={followUpLoading}>
                     <Text style={styles.followUpBtnText}>发送追问</Text>
                   </TouchableOpacity>
                 </View>
@@ -708,29 +720,6 @@ export default function BaziScreen({ navigation, route }) {
       </KeyboardAvoidingView>
 
       <LoadingModal visible={loading} text={loadText} />
-      {/* 自由问答弹窗 */}
-      <Modal transparent visible={showFreeAsk} animationType="fade" onRequestClose={() => setShowFreeAsk(false)}>
-        <View style={freeModalStyles.overlay}>
-          <View style={freeModalStyles.box}>
-            <Text style={freeModalStyles.title}>💬 自由问答</Text>
-            <Text style={freeModalStyles.desc}>有什么想问的？AI结合你的八字和流运进行分析</Text>
-            <TextInput style={freeModalStyles.input}
-              placeholder="输入你想问的问题..." placeholderTextColor={colors.textMuted}
-              value={freeAskText} onChangeText={setFreeAskText}
-              multiline numberOfLines={4}
-              autoFocus
-            />
-            <View style={freeModalStyles.btnRow}>
-              <TouchableOpacity style={freeModalStyles.cancelBtn} onPress={() => { setShowFreeAsk(false); setFreeAskText(''); }}>
-                <Text style={freeModalStyles.cancelBtnText}>取消</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={freeModalStyles.sendBtn} onPress={handleFreeAsk}>
-                <Text style={freeModalStyles.sendBtnText}>发送</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
       <DateTimePickerModal
         visible={showDatePicker}
         onClose={() => setShowDatePicker(false)}
@@ -778,6 +767,12 @@ const styles = StyleSheet.create({
   quotaRow: { flexDirection: 'row', alignItems: 'center' },
   quotaRechargeBtn: { backgroundColor: colors.primary, borderRadius: 6, paddingHorizontal: 10, paddingVertical: 3, marginLeft: 6 },
   quotaRechargeText: { color: '#fff', fontSize: 11, fontWeight: '600' },
+  chargeTypeRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: 4, gap: 4 },
+  chargeTypeBtn: { paddingHorizontal: 10, paddingVertical: 2, borderRadius: 6, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.inputBg },
+  chargeTypeActive: { borderColor: colors.primary, backgroundColor: colors.primary + '30' },
+  chargeTypeText: { fontSize: 10, color: colors.textDim },
+  chargeTypeTextActive: { fontSize: 10, color: colors.primary, fontWeight: '700' },
+  chargeTypeHint: { fontSize: 9, color: colors.textMuted, marginLeft: 2 },
   form: { backgroundColor: colors.card, borderRadius: 12, padding: 10, borderWidth: 1, borderColor: colors.border, marginBottom: 8 },
   formRow: { flexDirection: 'row', columnGap: 6 },
   formHalf: { flex: 1 },
@@ -887,17 +882,22 @@ const styles = StyleSheet.create({
   },
   flowSendText: { color: '#fff', fontSize: 14, fontWeight: '600' },
   flowCancel: { fontSize: 12, color: colors.textDim, marginTop: 10, textAlign: 'center', textDecorationLine: 'underline' },
+  // 问答历史样式
+  historyQuestion: {
+    backgroundColor: colors.primary + '18',
+    borderRadius: 10, padding: 8, paddingHorizontal: 12,
+    marginBottom: 6, alignSelf: 'flex-end', maxWidth: '90%',
+  },
+  historyQuestionText: { fontSize: 13, color: colors.primary, lineHeight: 20 },
+  // 追问内联加载
+  followUpLoadingBox: {
+    alignItems: 'center', paddingVertical: 16,
+    backgroundColor: colors.inputBg, borderRadius: 12,
+    borderWidth: 1, borderColor: colors.border, marginTop: 8,
+  },
+  followUpLoadingText: { fontSize: 13, color: colors.textDim },
 });
 
-const freeModalStyles = StyleSheet.create({
-  overlay: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.6)' },
-  box: { backgroundColor: colors.card, borderRadius: 20, padding: 24, width: '88%', borderWidth: 1, borderColor: colors.border },
-  title: { fontSize: 18, fontWeight: '700', color: colors.text, textAlign: 'center', marginBottom: 6 },
-  desc: { fontSize: 13, color: colors.textDim, textAlign: 'center', marginBottom: 16, lineHeight: 18 },
-  input: { backgroundColor: colors.inputBg, borderRadius: 12, padding: 14, fontSize: 15, color: colors.text, borderWidth: 1, borderColor: colors.border, minHeight: 100, textAlignVertical: 'top' },
-  btnRow: { flexDirection: 'row', justifyContent: 'flex-end', gap: 12, marginTop: 16 },
-  cancelBtn: { paddingVertical: 10, paddingHorizontal: 20, borderRadius: 10, borderWidth: 1, borderColor: colors.border },
-  cancelBtnText: { fontSize: 14, color: colors.textDim },
-  sendBtn: { backgroundColor: colors.primary, paddingVertical: 10, paddingHorizontal: 24, borderRadius: 10 },
-  sendBtnText: { fontSize: 14, color: '#fff', fontWeight: '600' },
-});
+
+
+

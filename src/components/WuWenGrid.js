@@ -9,36 +9,63 @@ const WU_WEN = [
   { key: 'marriage',  icon: '💑', label: '婚姻感情',  color: '#f472b6' },
   { key: 'children',  icon: '👨‍👩‍👧‍👦', label: '六亲眷属',  color: '#f0a040' },
   { key: 'decision',  icon: '💰', label: '亨通聚富',  color: '#ffd700' },
-  { key: 'freeask',   icon: '💬', label: '自由问答',  color: '#a78bfa' },
 ];
+
+function Btn({ w, onPress, disabled }) {
+  return (
+    <TouchableOpacity
+      style={[styles.btn, { borderColor: w.color + '44' }]}
+      onPress={() => onPress(w.key)}
+      disabled={disabled}
+    >
+      <Text style={styles.icon}>{w.icon}</Text>
+      <Text style={[styles.label, { color: w.color }]}>{w.label}</Text>
+    </TouchableOpacity>
+  );
+}
 
 export default function WuWenGrid({ onPress, disabled }) {
   return (
-    <View style={styles.grid}>
-      {WU_WEN.map(w => (
-        <TouchableOpacity
-          key={w.key}
-          style={[styles.btn, { borderColor: w.color + '44' }]}
-          onPress={() => onPress(w.key)}
-          disabled={disabled}
-        >
-          <Text style={styles.icon}>{w.icon}</Text>
-          <Text style={[styles.label, { color: w.color }]}>{w.label}</Text>
-        </TouchableOpacity>
-      ))}
+    <View style={styles.wrapper}>
+      {/* 第一行：3个按钮 */}
+      <View style={styles.row}>
+        {WU_WEN.slice(0, 3).map(w => (
+          <Btn key={w.key} w={w} onPress={onPress} disabled={disabled} />
+        ))}
+      </View>
+      {/* 第二行：2个按钮居中 */}
+      <View style={styles.rowCenter}>
+        {WU_WEN.slice(3).map(w => (
+          <Btn key={w.key} w={w} onPress={onPress} disabled={disabled} />
+        ))}
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  grid: {
-    flexDirection: 'row', flexWrap: 'wrap',
-    justifyContent: 'center', marginVertical: 12,
-    gap: 8,
+  wrapper: {
+    marginVertical: 12,
+    paddingHorizontal: 12,
+  },
+  row: {
+    flexDirection: 'row',
+    justifyContent: 'space-evenly',
+    marginBottom: 10,
+  },
+  rowCenter: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 10,
   },
   btn: {
-    backgroundColor: colors.card, borderRadius: 12, paddingVertical: 14,
-    paddingHorizontal: 8, alignItems: 'center', width: '30%', minWidth: 100,
+    backgroundColor: colors.card,
+    borderRadius: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 4,
+    alignItems: 'center',
+    width: '28%',
+    minWidth: 90,
     borderWidth: 1,
   },
   icon: { fontSize: 28, marginBottom: 6 },
