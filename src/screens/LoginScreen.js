@@ -1,6 +1,6 @@
 // 登录页 — 简洁表单
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
 import { colors } from '../theme';
 import { api } from '../api';
 import { storage } from '../storage';
@@ -28,45 +28,48 @@ export default function LoginScreen({ navigation, onLogin }) {
   }
 
   return (
-    <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <View style={styles.logo}>
-        <Text style={styles.logoIcon}>☯</Text>
-        <Text style={styles.logoText}>问数</Text>
-      </View>
+    <KeyboardAvoidingView style={styles.container} behavior="padding" keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}>
+      <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
+        <View style={styles.logo}>
+          <Text style={styles.logoIcon}>☯</Text>
+          <Text style={styles.logoText}>问数</Text>
+        </View>
 
-      <View style={styles.form}>
-        {error ? <Text style={styles.error}>{error}</Text> : null}
+        <View style={styles.form}>
+          {error ? <Text style={styles.error}>{error}</Text> : null}
 
-        <Text style={styles.label}>用户名</Text>
-        <TextInput
-          style={styles.input} placeholder="输入用户名"
-          placeholderTextColor={colors.textMuted}
-          value={username} onChangeText={setUsername}
-          autoCapitalize="none"
-        />
+          <Text style={styles.label}>用户名</Text>
+          <TextInput
+            style={styles.input} placeholder="输入用户名"
+            placeholderTextColor={colors.textMuted}
+            value={username} onChangeText={setUsername}
+            autoCapitalize="none"
+          />
 
-        <Text style={styles.label}>密码</Text>
-        <TextInput
-          style={styles.input} placeholder="输入密码"
-          placeholderTextColor={colors.textMuted}
-          value={password} onChangeText={setPassword}
-          secureTextEntry
-        />
+          <Text style={styles.label}>密码</Text>
+          <TextInput
+            style={styles.input} placeholder="输入密码"
+            placeholderTextColor={colors.textMuted}
+            value={password} onChangeText={setPassword}
+            secureTextEntry
+          />
 
-        <TouchableOpacity style={styles.btn} onPress={handleLogin} disabled={loading}>
-          <Text style={styles.btnText}>{loading ? '登录中...' : '登 录'}</Text>
-        </TouchableOpacity>
+          <TouchableOpacity style={styles.btn} onPress={handleLogin} disabled={loading}>
+            <Text style={styles.btnText}>{loading ? '登录中...' : '登 录'}</Text>
+          </TouchableOpacity>
 
-        <TouchableOpacity onPress={() => navigation.navigate('Register')}>
-          <Text style={styles.link}>还没有账号？立即注册</Text>
-        </TouchableOpacity>
-      </View>
+          <TouchableOpacity onPress={() => navigation.navigate('Register')}>
+            <Text style={styles.link}>还没有账号？立即注册</Text>
+          </TouchableOpacity>
+        </View>
+      </ScrollView>
     </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.bg, justifyContent: 'center', padding: 24 },
+  scrollContent: { flexGrow: 1, justifyContent: 'center' },
   logo: { alignItems: 'center', marginBottom: 28 },
   logoIcon: { fontSize: 44 },
   logoText: { fontSize: 22, fontWeight: '700', color: colors.primary, marginTop: 4 },

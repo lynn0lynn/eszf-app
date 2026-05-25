@@ -32,7 +32,7 @@ export default function RegisterScreen({ navigation, onRegister }) {
   }
 
   return (
-    <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+    <KeyboardAvoidingView style={styles.container} behavior="padding" keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}>
       <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollInner}>
         <View style={styles.logo}>
           <Text style={styles.title}>创建账号</Text>

@@ -1,51 +1,41 @@
-# Build APK with Expo on GitHub Actions
-name: Build Android APK
+name: Build APK
 
 on:
   push:
-    branches: [main, master]
-  workflow_dispatch:  # 手动触发
+    branches: [master]
+  workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+    timeout-minutes: 30
 
-      - name: Setup Java 17
-        uses: actions/setup-java@v4
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
-          java-version: '17'
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-          cache: 'npm'
-          cache-dependency-path: package-lock.json
-
-      - name: Install dependencies
-        run: npm install --legacy-peer-deps
+          java-version: 17
 
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
+        with:
+          cmdline-tools-version: 11076708
 
-      - name: Prebuild native project
-        run: npx expo prebuild --platform android --no-install
+      - name: Install npm dependencies
+        run: npm ci
 
-      - name: Build Release APK
-        run: |
-          cd android
-          chmod +x gradlew
-          ./gradlew assembleRelease
-        env:
-          ANDROID_HOME: ${{ github.workspace }}/android-sdk
+      - name: Build APK
+        run: cd android && ./gradlew assembleRelease --no-daemon --max-workers=2
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: app-release-apk
-          path: android/app/build/outputs/apk/release/app-release.apk
+          name: eszf-app-release
+          path: android/app/build/outputs/apk/release/*.apk
           compression-level: 0

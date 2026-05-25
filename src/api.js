@@ -84,4 +84,8 @@ export const api = {
   // 保存排盘记录
   saveReading: (data) =>
     request('POST', '/bazi/readings', data, true),
+
+  // 赢了么·比赛预测
+  yingLeMe: (data) =>
+    request('POST', '/bazi/yingleme-predict', data, true),
 };

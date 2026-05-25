@@ -1,6 +1,6 @@
 // ESZF App — 问数 · E上智方
 import React, { useState, useEffect, useCallback } from 'react';
-import { TouchableOpacity, Text, LogBox } from 'react-native';
+import { TouchableOpacity, Text, LogBox, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
@@ -95,7 +95,11 @@ export default function App() {
               <>
                 <Stack.Screen name="Bazi" options={({ navigation }) => ({
                   title: '问数',
-                  headerRight: () => <ProfileBtn navigation={navigation} />,
+                  headerRight: () => (
+                    <View style={{flexDirection:'row',alignItems:'center',gap:4}}>
+                      <ProfileBtn navigation={navigation} />
+                    </View>
+                  ),
                 })}>
                   {props => <BaziScreen {...props} />}
                 </Stack.Screen>
