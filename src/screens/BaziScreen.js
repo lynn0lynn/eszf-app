@@ -410,7 +410,7 @@ export default function BaziScreen({ navigation, route }) {
     delay(300).then(() => setYlmProcessLine('📐 本地演算中：笔画卦象计算...'));
     delay(700).then(() => setYlmProcessLine('🌍 本地演算中：场地地理方位分析...'));
     delay(1200).then(() => setYlmProcessLine('☯ 本地演算中：流运冲合刑害推演...'));
-    delay(1700).then(() => setYlmProcessLine('🤖 调取AI天机推演中...'));
+    delay(1700).then(() => setYlmProcessLine('🤖 AI正在分析中，请稍等'));
 
     try {
       const dt = ylmDate + ' ' + ylmHour + ':' + ylmMinute;
@@ -1037,7 +1037,7 @@ const styles = StyleSheet.create({
   followUpLoadingText: { fontSize: 13, color: colors.textDim },
 
   // ⚔️ 赢了么
-  ylmSection: { marginTop: 28, paddingTop: 20, borderTopWidth: 1, borderTopColor: '#43b58144' },
+  ylmSection: { backgroundColor: colors.card, borderRadius: 12, padding: 14, borderWidth: 1, borderColor: colors.border, marginTop: 24 },
   ylmHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 16 },
   ylmTitle: { fontSize: 18, fontWeight: '700', color: '#43b581' },
   ylmSub: { fontSize: 12, color: colors.textDim, marginTop: 2 },
