@@ -219,10 +219,8 @@ export default function BaziScreen({ navigation, route }) {
 
     // 前5个 → 展示流运信息 + 用户可自由提问
     setFlowInfoType(type);
-    setAiResult(null);
-    setFlowHistory([]);
     setFlowQuestion('');
-    setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 300);
+    // 不清空flowHistory，保留全部问答历史
   }
 
   // 五问：用户点击"AI分析"按钮 → 调API分析该话题
@@ -252,11 +250,9 @@ export default function BaziScreen({ navigation, route }) {
       if (isLoggedIn) {
         try { const q = await api.getQuota(getBaziId(baziData)); setQuota(q); } catch (e) {}
       }
-      // 回答出现后滚动到五问卡片顶部，展示完整对话
+      // 回答出现后滚到底部，展示最新消息
       setTimeout(() => {
-        if (flowCardY > 0) {
-          scrollRef.current?.scrollTo({ y: flowCardY - 10, animated: true });
-        }
+        scrollRef.current?.scrollToEnd({ animated: true });
       }, 500);
     } catch (e) {
       setFlowHistory(prev => prev.slice(0, -1)); // 移除问题标记
@@ -300,11 +296,9 @@ export default function BaziScreen({ navigation, route }) {
       if (isLoggedIn) {
         try { const q = await api.getQuota(getBaziId(baziData)); setQuota(q); } catch (e) {}
       }
-      // 回答后滚动到五问卡片顶部，展示完整对话
+      // 回答后滚到底部，展示最新消息
       setTimeout(() => {
-        if (flowCardY > 0) {
-          scrollRef.current?.scrollTo({ y: flowCardY - 10, animated: true });
-        }
+        scrollRef.current?.scrollToEnd({ animated: true });
       }, 500);
     } catch (e) {
       setFlowHistory(prev => prev.slice(0, -1)); // 移除问题标记
