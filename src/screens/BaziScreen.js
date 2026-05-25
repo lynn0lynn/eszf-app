@@ -94,25 +94,6 @@ export default function BaziScreen({ navigation, route }) {
   const scrollRef = useRef(null);
   const followUpRef = useRef(null);
   const flowCardRef = useRef(null);
-  const flowEndRef = useRef(null);
-  const followUpEndRef = useRef(null);
-
-  // ⚔️ 赢了么 状态
-  const [ylmTeamA, setYlmTeamA] = useState('');
-  const [ylmTeamB, setYlmTeamB] = useState('');
-  const [ylmDate, setYlmDate] = useState(getToday());
-  const [ylmHour, setYlmHour] = useState('20');
-  const [ylmMinute, setYlmMinute] = useState('0');
-  const [ylmVenu, setYlmVenu] = useState('');
-  const [showYlmDatePicker, setShowYlmDatePicker] = useState(false);
-  const [ylmLoading, setYlmLoading] = useState(false);
-  const [ylmResult, setYlmResult] = useState(null);
-  const [ylmProcessLog, setYlmProcessLog] = useState([]);
-
-  function addYlmLog(icon, text) {
-    setYlmProcessLog(prev => [...prev, { icon, text, key: Date.now() + Math.random() }]);
-  }
-  function clearYlmLog() { setYlmProcessLog([]); }
 
   // 检查登录状态
   React.useEffect(() => {
@@ -405,70 +386,7 @@ export default function BaziScreen({ navigation, route }) {
     }
   }
 
-  // ===== ⚔️ 赢了么 预测函数 =====
-  const YLM_TRIGRAM_NAMES = ['','乾☰','兑☱','离☲','震☳','巽☴','坎☵','艮☶','坤☷'];
-  const YLM_TRIGRAM_WX = ['','金','金','火','木','木','水','土','土'];
-  function ylmStrokeCount(text) {
-    if (!text) return 0;
-    text = text.trim();
-    const map = {
-      '巴':4,'塞':13,'罗':8,'那':6,'皇':9,'家':10,'马':3,'德':15,'里':7,'竞':20,
-      '曼':11,'联':12,'切':4,'西':6,'利':7,'物':8,'浦':10,'拜':9,'仁':4,'慕':14,'尼':5,'黑':12,
-      '巴':4,'黎':15,'圣':5,'日':4,'耳':6,'尤':5,'文':4,'图':8,'斯':12,'AC':0,'米':6,'兰':5,
-      '国':8,'际':13,'阿':7,'森':12,'纳':7,'尔':5,'车':7,'热':10,'刺':8,'多':6,'特':10,'蒙':13,
-      '湖':12,'人':2,'勇':9,'士':3,'凯':8,'火':4,'雄':12,'鹿':16,
-      '广':15,'州':6,'队':4,'上':3,'海':10,'港':12,'山':3,'东':5,'泰':10,
-      '北':5,'京':8,'安':6,'全':6,'现':11,'代':5,'川':3,'崎':11,'前':9,'锋':12,'蔚':14,
-      '浦':10,'和':8,'红':9,'钻':10,'大':3,'米':6,
-    };
-    let total = 0;
-    for (let i = 0; i < text.length; i++) {
-      const ch = text[i];
-      if (map[ch] !== undefined) total += map[ch];
-      else total += Math.max(1, (ch.charCodeAt(0) % 20) + 4);
-    }
-    return total;
-  }
-
-  async function handleYlmPredict() {
-    if (!ylmTeamA.trim() || !ylmTeamB.trim()) {
-      Alert.alert('提示', '请填写双方队名/姓名'); return;
-    }
-    if (!isLoggedIn) {
-      Alert.alert('请先登录', '登录后即可使用预测功能', [
-        { text: '取消', style: 'cancel' },
-        { text: '去登录', onPress: () => navigation.navigate('Login') },
-      ]); return;
-    }
-    setYlmLoading(true); setYlmResult(null); clearYlmLog();
-
-    try {
-      addYlmLog('⏳', '第1步：天时勘定...');
-      const dt = ylmDate + ' ' + ylmHour + ':' + ylmMinute;
-      const res = await api.yingLeMe({
-        teamA: ylmTeamA.trim(), teamB: ylmTeamB.trim(),
-        matchDate: dt, venue: ylmVenu.trim() || '未指定',
-      });
-      addYlmLog('✅', '第1步完成：真太阳时已校准');
-      addYlmLog('⏳', '第2步：推演地理方位...');
-      addYlmLog('✅', '第2步完成：场地/队伍方位已纳入天时');
-      addYlmLog('⏳', '第3步：AI天机推演中...');
-      setYlmResult(res.result || '⚠️ 预测失败，请重试');
-      addYlmLog('✅', '第3步完成：预测已定 ✓');
-    } catch (e) {
-      if (e.message && (e.message.includes('配额') || e.message.includes('quota'))) {
-        Alert.alert('配额不足', '次数或Tokens不足，请先充值', [
-          { text: '取消', style: 'cancel' },
-          { text: '去充值', onPress: () => setShowPayment(true) },
-        ]);
-      } else {
-        Alert.alert('预测失败', e.message || '请稍后重试');
-      }
-      addYlmLog('❌', '出错：' + e.message);
-    } finally {
-      setYlmLoading(false);
-    }
-  }
+  // ===== ⚔️ 赢了么 已移入独立页面 YingLeMeScreen =====
 
   return (
     <>
@@ -819,53 +737,6 @@ export default function BaziScreen({ navigation, route }) {
             </>
           ) : null}
 
-            {/* ⚔️ 赢了么 — 比赛预测（排盘后显示） */}
-            {baziData && isLoggedIn ? (
-              <View style={styles.ylmSection}>
-                <View style={styles.ylmHeader}>
-                  <Text style={styles.ylmTitle}>⚔️ 赢了么</Text>
-                  <Text style={styles.ylmSub}>比赛对阵 · 天时方位预测</Text>
-                </View>
-
-                <Text style={styles.label}>🏆 主队/选手A</Text>
-                <TextInput style={styles.input} value={ylmTeamA} onChangeText={setYlmTeamA}
-                  placeholder="输入队名或人名" placeholderTextColor={colors.textMuted} />
-
-                <Text style={styles.label}>🏆 客队/选手B</Text>
-                <TextInput style={styles.input} value={ylmTeamB} onChangeText={setYlmTeamB}
-                  placeholder="输入队名或人名" placeholderTextColor={colors.textMuted} />
-
-                <Text style={styles.label}>📅 比赛时间（北京时间）</Text>
-                <TouchableOpacity style={styles.input} onPress={() => setShowYlmDatePicker(true)}>
-                  <Text style={[styles.inputText || { fontSize: 15, color: colors.text }, ylmDate ? null : { color: colors.textMuted }]}>
-                    {ylmDate ? `${ylmDate} ${ylmHour}:${ylmMinute}` : '点击选择比赛时间'}
-                  </Text>
-                </TouchableOpacity>
-
-                <Text style={styles.label}>📍 比赛场地</Text>
-                <TextInput style={styles.input} value={ylmVenu} onChangeText={setYlmVenu}
-                  placeholder="如：北京国家体育场 / 伯纳乌" placeholderTextColor={colors.textMuted} />
-
-                <TouchableOpacity style={[styles.ylmBtn, ylmLoading && styles.ylmBtnDisabled]}
-                  onPress={handleYlmPredict} disabled={ylmLoading}>
-                  <Text style={styles.ylmBtnText}>{ylmLoading ? '⏳ 预测中...' : '⚔️ 预测胜负'}</Text>
-                </TouchableOpacity>
-
-                {ylmProcessLog.length > 0 ? (
-                  <View style={styles.ylmLog}>
-                    {ylmProcessLog.map((log, i) => (
-                      <Text key={log.key || i} style={styles.ylmLogLine}>{log.icon} {log.text}</Text>
-                    ))}
-                  </View>
-                ) : null}
-
-                {ylmResult ? (
-                  <View style={styles.ylmResultBox}>
-                    <Text style={styles.ylmResultText}>{ylmResult}</Text>
-                  </View>
-                ) : null}
-              </View>
-            ) : null}
           </ScrollView>
       </KeyboardAvoidingView>
 
@@ -881,19 +752,6 @@ export default function BaziScreen({ navigation, route }) {
         initialDate={birthDate}
         initialHour={hour}
         initialMinute={minute}
-      />
-      {/* ⚔️ 赢了么 日期选择器 */}
-      <DateTimePickerModal
-        visible={showYlmDatePicker}
-        onClose={() => setShowYlmDatePicker(false)}
-        onConfirm={(dateStr, hourStr, minuteStr) => {
-          setYlmDate(dateStr);
-          setYlmHour(hourStr);
-          setYlmMinute(minuteStr);
-        }}
-        initialDate={ylmDate}
-        initialHour={ylmHour}
-        initialMinute={ylmMinute}
       />
       <CityPickerModal
         visible={showCityPicker}
@@ -1059,33 +917,6 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: colors.border, marginTop: 8,
   },
   followUpLoadingText: { fontSize: 13, color: colors.textDim },
-
-  // ⚔️ 赢了么
-  ylmSection: {
-    marginTop: 28, paddingTop: 20, borderTopWidth: 1, borderTopColor: '#43b58144',
-  },
-  ylmHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 16 },
-  ylmTitle: { fontSize: 18, fontWeight: '700', color: '#43b581' },
-  ylmSub: { fontSize: 12, color: colors.textDim, marginTop: 2 },
-  ylmBtn: {
-    backgroundColor: '#43b581', borderRadius: 12, paddingVertical: 14,
-    alignItems: 'center', marginTop: 24,
-  },
-  ylmBtnDisabled: { opacity: 0.5 },
-  ylmBtnText: { fontSize: 16, fontWeight: '700', color: '#fff' },
-  ylmLog: {
-    backgroundColor: '#1a2332', borderWidth: 1, borderColor: '#2a3a4a',
-    borderRadius: 10, padding: 12, marginTop: 16,
-  },
-  ylmLogLine: {
-    fontSize: 12, color: '#8ab4f8', marginBottom: 4,
-    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
-  },
-  ylmResultBox: {
-    backgroundColor: colors.card, borderWidth: 1, borderColor: '#43b58144',
-    borderRadius: 12, padding: 16, marginTop: 16,
-  },
-  ylmResultText: { fontSize: 14, color: '#ccc', lineHeight: 22 },
 });
 
 

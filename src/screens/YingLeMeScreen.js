@@ -161,7 +161,7 @@ export default function YingLeMeScreen({ navigation }) {
   return (
     <KeyboardAvoidingView
       style={styles.flex}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'padding'}
     >
       <ScrollView
         ref={scrollRef}
