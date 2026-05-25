@@ -387,6 +387,7 @@ export default function BaziScreen({ navigation, route }) {
   const [ylmHour, setYlmHour] = useState('20');
   const [ylmMinute, setYlmMinute] = useState('0');
   const [ylmVenu, setYlmVenu] = useState('');
+  const [ylmSport, setYlmSport] = useState('篮球');
   const [showYlmDatePicker, setShowYlmDatePicker] = useState(false);
   const [ylmLoading, setYlmLoading] = useState(false);
   const [ylmResult, setYlmResult] = useState(null);
@@ -413,7 +414,7 @@ export default function BaziScreen({ navigation, route }) {
       const dt = ylmDate + ' ' + ylmHour + ':' + ylmMinute;
       const res = await api.yingLeMe({
         teamA: ylmTeamA.trim(), teamB: ylmTeamB.trim(),
-        matchDate: dt, venue: ylmVenu.trim() || '未指定',
+        matchDate: dt, venue: ylmVenu.trim() || '未指定', sport: ylmSport,
       });
       addYlmLog('✅', '第1步完成：真太阳时已校准');
       addYlmLog('⏳', '第2步：推演地理方位...');
@@ -793,6 +794,17 @@ export default function BaziScreen({ navigation, route }) {
                 <Text style={styles.ylmSub}>比赛对阵 · 天时方位预测</Text>
               </View>
 
+              <Text style={styles.label}>🏅 比赛类型</Text>
+              <View style={styles.sportRow}>
+                {['足球','篮球','排球','乒乓球','羽毛球','网球','电子竞技','其他'].map(s => (
+                  <TouchableOpacity key={s}
+                    style={[styles.sportBtn, ylmSport === s && styles.sportActive]}
+                    onPress={() => setYlmSport(s)}>
+                    <Text style={[styles.sportBtnText, ylmSport === s && styles.sportBtnActive]}>{s}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
               <Text style={styles.label}>🏆 主队/选手A</Text>
               <TextInput style={styles.input} value={ylmTeamA} onChangeText={setYlmTeamA}
                 placeholder="输入队名或人名" placeholderTextColor={colors.textMuted} />
@@ -1032,6 +1044,11 @@ const styles = StyleSheet.create({
   ylmHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 16 },
   ylmTitle: { fontSize: 18, fontWeight: '700', color: '#43b581' },
   ylmSub: { fontSize: 12, color: colors.textDim, marginTop: 2 },
+  sportRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 14 },
+  sportBtn: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 14, backgroundColor: '#1a1a2e', borderWidth: 1, borderColor: colors.border },
+  sportActive: { backgroundColor: '#43b58133', borderColor: '#43b581' },
+  sportBtnText: { fontSize: 12, color: '#888' },
+  sportBtnActive: { fontSize: 12, color: '#43b581', fontWeight: '600' },
   ylmBtn: { backgroundColor: '#43b581', borderRadius: 12, paddingVertical: 14, alignItems: 'center', marginTop: 24 },
   ylmBtnDisabled: { opacity: 0.5 },
   ylmBtnText: { fontSize: 16, fontWeight: '700', color: '#fff' },
