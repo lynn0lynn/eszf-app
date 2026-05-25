@@ -161,8 +161,7 @@ export default function YingLeMeScreen({ navigation }) {
   return (
     <KeyboardAvoidingView
       style={styles.flex}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+      behavior={Platform.OS === 'android' ? undefined : 'padding'}
     >
       <ScrollView
         ref={scrollRef}
@@ -188,9 +187,6 @@ export default function YingLeMeScreen({ navigation }) {
           onChangeText={setTeamA}
           placeholder="输入队名或人名"
           placeholderTextColor={colors.textMuted}
-          onFocus={() => {
-            setTimeout(() => scrollRef.current?.scrollTo?.({ y: 0, animated: true }), 200);
-          }}
         />
 
         {/* 客队 */}
@@ -201,9 +197,6 @@ export default function YingLeMeScreen({ navigation }) {
           onChangeText={setTeamB}
           placeholder="输入队名或人名"
           placeholderTextColor={colors.textMuted}
-          onFocus={() => {
-            setTimeout(() => scrollRef.current?.scrollTo?.({ y: 0, animated: true }), 200);
-          }}
         />
 
         {/* 比赛时间 */}
@@ -231,9 +224,6 @@ export default function YingLeMeScreen({ navigation }) {
           onChangeText={setVenue}
           placeholder="如：北京国家体育场 / 圣地亚哥伯纳乌"
           placeholderTextColor={colors.textMuted}
-          onFocus={() => {
-            setTimeout(() => scrollRef.current?.scrollTo?.({ y: 0, animated: true }), 200);
-          }}
         />
 
         {/* 预测按钮 */}
