@@ -2,7 +2,7 @@
 import { storage } from './storage';
 
 const BASE_URL = 'https://eszf.com.cn/api';
-const TIMEOUT = 15000; // 15秒超时
+const TIMEOUT = 45000; // 45秒超时（AI分析需要较长时间）
 
 async function request(method, path, body = null, auth = false) {
   const headers = { 'Content-Type': 'application/json' };
