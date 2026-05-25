@@ -14,7 +14,6 @@ import RegisterScreen from './src/screens/RegisterScreen';
 import WelcomeScreen from './src/screens/WelcomeScreen';
 import BaziScreen from './src/screens/BaziScreen';
 import ProfileScreen from './src/screens/ProfileScreen';
-import YingLeMeScreen from './src/screens/YingLeMeScreen';
 
 // 屏蔽不必要的警告
 LogBox.ignoreLogs(['Non-serializable values']);
@@ -98,9 +97,6 @@ export default function App() {
                   title: '问数',
                   headerRight: () => (
                     <View style={{flexDirection:'row',alignItems:'center',gap:4}}>
-                      <TouchableOpacity onPress={() => navigation.navigate('YingLeMe')} style={{ marginRight: 4 }}>
-                        <Text style={{ fontSize: 22 }}>⚔️</Text>
-                      </TouchableOpacity>
                       <ProfileBtn navigation={navigation} />
                     </View>
                   ),
@@ -110,7 +106,6 @@ export default function App() {
                 <Stack.Screen name="Profile" options={{ title: '个人中心' }}>
                   {props => <ProfileScreen {...props} onLogout={handleLogout} />}
                 </Stack.Screen>
-                <Stack.Screen name="YingLeMe" component={YingLeMeScreen} options={{ title: '⚔️ 赢了么' }} />
               </>
             )}
           </Stack.Navigator>
