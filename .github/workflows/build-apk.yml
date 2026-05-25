@@ -30,6 +30,9 @@ jobs:
       - name: Install npm dependencies
         run: npm ci
 
+      - name: Expo prebuild (generate android dir)
+        run: npx expo prebuild --clean --platform android
+
       - name: Build APK
         run: cd android && ./gradlew assembleRelease --no-daemon --max-workers=2
 
