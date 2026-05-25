@@ -161,12 +161,14 @@ export default function YingLeMeScreen({ navigation }) {
   return (
     <KeyboardAvoidingView
       style={styles.flex}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'padding'}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
     >
       <ScrollView
         ref={scrollRef}
         style={styles.flex}
         contentContainerStyle={styles.container}
+        keyboardShouldPersistTaps="handled"
         onContentSizeChange={() => scrollRef.current?.scrollToEnd?.({ animated: false })}
       >
         {/* 标题 */}
@@ -186,6 +188,9 @@ export default function YingLeMeScreen({ navigation }) {
           onChangeText={setTeamA}
           placeholder="输入队名或人名"
           placeholderTextColor={colors.textMuted}
+          onFocus={() => {
+            setTimeout(() => scrollRef.current?.scrollTo?.({ y: 0, animated: true }), 200);
+          }}
         />
 
         {/* 客队 */}
@@ -196,13 +201,20 @@ export default function YingLeMeScreen({ navigation }) {
           onChangeText={setTeamB}
           placeholder="输入队名或人名"
           placeholderTextColor={colors.textMuted}
+          onFocus={() => {
+            setTimeout(() => scrollRef.current?.scrollTo?.({ y: 0, animated: true }), 200);
+          }}
         />
 
         {/* 比赛时间 */}
         <Text style={styles.label}>📅 比赛时间（当地时间）</Text>
         <TouchableOpacity
           style={styles.input}
-          onPress={() => setShowDatePicker(true)}
+          onPress={() => {
+            setShowDatePicker(true);
+            // 弹窗前先滚动到顶部，避免被弹窗覆盖后看不到上下文
+            setTimeout(() => scrollRef.current?.scrollTo?.({ y: 0, animated: true }), 50);
+          }}
         >
           <Text style={[styles.inputText, matchDate ? null : styles.placeholder]}>
             {matchDate
@@ -219,6 +231,9 @@ export default function YingLeMeScreen({ navigation }) {
           onChangeText={setVenue}
           placeholder="如：北京国家体育场 / 圣地亚哥伯纳乌"
           placeholderTextColor={colors.textMuted}
+          onFocus={() => {
+            setTimeout(() => scrollRef.current?.scrollTo?.({ y: 0, animated: true }), 200);
+          }}
         />
 
         {/* 预测按钮 */}
@@ -280,7 +295,7 @@ export default function YingLeMeScreen({ navigation }) {
 const styles = StyleSheet.create({
   flex: { flex: 1, backgroundColor: colors.bg },
   container: {
-    padding: 16, paddingBottom: 40,
+    padding: 16, paddingBottom: 80,
   },
   header: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
