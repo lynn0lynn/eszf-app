@@ -49,16 +49,21 @@ function formatDateDisplay(dateStr) {
 function getBaziId(bazi) {
   if (!bazi) return '';
   const raw = (bazi.name || '') + '|' + (bazi.gender || '') + '|' +
-    (bazi.yearPillar?.ganZhi || '') + '|' +
-    (bazi.monthPillar?.ganZhi || '') + '|' +
-    (bazi.dayPillar?.ganZhi || '') + '|' +
-    (bazi.hourPillar?.ganZhi || '');
+    ((bazi.yearPillar && bazi.yearPillar.ganZhi) || '') + '|' +
+    ((bazi.monthPillar && bazi.monthPillar.ganZhi) || '') + '|' +
+    ((bazi.dayPillar && bazi.dayPillar.ganZhi) || '') + '|' +
+    ((bazi.hourPillar && bazi.hourPillar.ganZhi) || '');
   let hash = 0;
   for (let i = 0; i < raw.length; i++) {
     hash = ((hash << 5) - hash) + raw.charCodeAt(i);
     hash |= 0;
   }
   return 'bz_' + Math.abs(hash).toString(36);
+}
+
+// 从baziData构建背景上下文（与网站buildBackgroundContext对应）
+function buildBgCtx() {
+  return ''; // 后端已通过baziData构建完整流运信息，前端无需额外传递
 }
 
 export default function BaziScreen({ navigation, route }) {
@@ -244,7 +249,7 @@ export default function BaziScreen({ navigation, route }) {
     setFlowHistory(prev => [...prev, { type: 'question', content: `🤖 ${info.icon} AI分析${info.label}` }]);
     setFlowLoading(true);
     try {
-      const data = await api.aiAsk(baziData, type, '', true, chargeType);
+      const data = await api.aiAsk(baziData, type, buildBgCtx(), false, chargeType);
       setFlowHistory(prev => [...prev, { type: 'answer', content: data.result || '暂无分析结果' }]);
       setAiResult(data.result || ''); // 供底部追问使用
       if (isLoggedIn) {
