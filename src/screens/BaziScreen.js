@@ -391,12 +391,7 @@ export default function BaziScreen({ navigation, route }) {
   const [showYlmDatePicker, setShowYlmDatePicker] = useState(false);
   const [ylmLoading, setYlmLoading] = useState(false);
   const [ylmResult, setYlmResult] = useState(null);
-  const [ylmProcessLog, setYlmProcessLog] = useState([]);
-
-  function addYlmLog(icon, text) {
-    setYlmProcessLog(prev => [...prev, { icon, text, key: Date.now() + Math.random() }]);
-  }
-  function clearYlmLog() { setYlmProcessLog([]); }
+  const [ylmProcessLine, setYlmProcessLine] = useState('');
 
   async function handleYlmPredict() {
     if (!ylmTeamA.trim() || !ylmTeamB.trim()) {
@@ -408,20 +403,24 @@ export default function BaziScreen({ navigation, route }) {
         { text: '去登录', onPress: () => navigation.navigate('Login') },
       ]); return;
     }
-    setYlmLoading(true); setYlmResult(null); clearYlmLog();
+    setYlmLoading(true); setYlmResult(null); setYlmProcessLine('⚙️ 本地演算中：排盘推演...');
+
+    // 异步延迟模拟本地演算步骤（不阻塞）
+    const delay = ms => new Promise(r => setTimeout(r, ms));
+    delay(300).then(() => setYlmProcessLine('📐 本地演算中：笔画卦象计算...'));
+    delay(700).then(() => setYlmProcessLine('🌍 本地演算中：场地地理方位分析...'));
+    delay(1200).then(() => setYlmProcessLine('☯ 本地演算中：流运冲合刑害推演...'));
+    delay(1700).then(() => setYlmProcessLine('🤖 调取AI天机推演中...'));
+
     try {
-      addYlmLog('⏳', '第1步：天时勘定...');
       const dt = ylmDate + ' ' + ylmHour + ':' + ylmMinute;
       const res = await api.yingLeMe({
         teamA: ylmTeamA.trim(), teamB: ylmTeamB.trim(),
         matchDate: dt, venue: ylmVenu.trim() || '未指定', sport: ylmSport,
       });
-      addYlmLog('✅', '第1步完成：真太阳时已校准');
-      addYlmLog('⏳', '第2步：推演地理方位...');
-      addYlmLog('✅', '第2步完成：场地/队伍方位已纳入天时');
-      addYlmLog('⏳', '第3步：AI天机推演中...');
+      // 结果返回，覆盖过程
+      setYlmProcessLine('');
       setYlmResult(res.result || '⚠️ 预测失败，请重试');
-      addYlmLog('✅', '第3步完成：预测已定 ✓');
     } catch (e) {
       if (e.message && (e.message.includes('配额') || e.message.includes('quota'))) {
         Alert.alert('配额不足', '次数或Tokens不足，请先充值', [
@@ -431,7 +430,7 @@ export default function BaziScreen({ navigation, route }) {
       } else {
         Alert.alert('预测失败', e.message || '请稍后重试');
       }
-      addYlmLog('❌', '出错：' + e.message);
+      setYlmProcessLine('');
     } finally {
       setYlmLoading(false);
     }
@@ -829,11 +828,9 @@ export default function BaziScreen({ navigation, route }) {
                 <Text style={styles.ylmBtnText}>{ylmLoading ? '⏳ 预测中...' : '⚔️ 预测胜负'}</Text>
               </TouchableOpacity>
 
-              {ylmProcessLog.length > 0 ? (
-                <View style={styles.ylmLog}>
-                  {ylmProcessLog.map((log, i) => (
-                    <Text key={log.key || i} style={styles.ylmLogLine}>{log.icon} {log.text}</Text>
-                  ))}
+              {ylmProcessLine ? (
+                <View style={styles.ylmProcessLine}>
+                  <Text style={styles.ylmProcessText}>{ylmProcessLine}</Text>
                 </View>
               ) : null}
 
@@ -1052,8 +1049,8 @@ const styles = StyleSheet.create({
   ylmBtn: { backgroundColor: '#43b581', borderRadius: 12, paddingVertical: 14, alignItems: 'center', marginTop: 24 },
   ylmBtnDisabled: { opacity: 0.5 },
   ylmBtnText: { fontSize: 16, fontWeight: '700', color: '#fff' },
-  ylmLog: { backgroundColor: '#1a2332', borderWidth: 1, borderColor: '#2a3a4a', borderRadius: 10, padding: 12, marginTop: 16 },
-  ylmLogLine: { fontSize: 12, color: '#8ab4f8', marginBottom: 4, fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace' },
+  ylmProcessLine: { backgroundColor: 'rgba(67,181,129,0.08)', borderWidth: 1, borderColor: '#43b58133', borderRadius: 10, padding: 10, marginTop: 16, alignItems: 'center' },
+  ylmProcessText: { fontSize: 13, color: '#ffd700', textAlign: 'center' },
   ylmResultBox: { backgroundColor: colors.card, borderWidth: 1, borderColor: '#43b58144', borderRadius: 12, padding: 16, marginTop: 16 },
   ylmResultText: { fontSize: 14, color: '#ccc', lineHeight: 22 },
 });
