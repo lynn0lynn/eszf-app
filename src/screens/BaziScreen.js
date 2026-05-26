@@ -295,7 +295,14 @@ export default function BaziScreen({ navigation, route }) {
       // 获取最近一条AI回答作为上下文，保证对话连续性
       const lastAiResult = [...flowHistory].reverse().find(i => i.type === 'answer');
       const context = lastAiResult ? lastAiResult.content : aiResult || '';
-      const data = await api.customAsk(question, context, getBaziId(baziData), baziData, chargeType);
+      // 构建完整对话历史，实现连续追问
+      const historyParts = flowHistory.filter(i => i.type === 'question' || i.type === 'answer')
+        .map(i => i.type === 'question' ? `用户追问：${i.content}` : `你的回答：${i.content}`);
+      if (historyParts.length > 0) {
+        historyParts.unshift('===== 对话历史 =====');
+      }
+      const bg = historyParts.join('\n');
+      const data = await api.customAsk(question, bg, getBaziId(baziData), baziData, chargeType);
       setFlowHistory(prev => [...prev, { type: 'answer', content: data.answer || '暂无结果' }]);
       setAiResult(data.answer || ''); // 供关闭flowCard后独立追问使用
       if (isLoggedIn) {
@@ -340,9 +347,16 @@ export default function BaziScreen({ navigation, route }) {
     setFollowUpText('');
     setFollowUpLoading(true);
     try {
+      // 构建完整对话历史，实现连续追问
+      const historyParts = followUpHistory.filter(i => i.type === 'question' || i.type === 'answer')
+        .map(i => i.type === 'question' ? `用户追问：${i.content}` : `你的回答：${i.content}`);
+      if (historyParts.length > 0) {
+        historyParts.unshift('===== 对话历史 =====');
+      }
+      const bg = historyParts.join('\n');
       const data = await api.customAsk(
         qText,
-        aiResult || '',
+        bg || aiResult || '',
         getBaziId(baziData),
         baziData,
         chargeType
