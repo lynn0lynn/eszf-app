@@ -252,7 +252,9 @@ export default function YingLeMeScreen({ navigation }) {
           placeholderTextColor={colors.textMuted}
           onLayout={e => { inputY.current.venue = e.nativeEvent.layout.y; }}
           onFocus={() => {
-            Keyboard.dismiss(); // 直接把键盘收回去，场地不是必须的
+            setTimeout(() => {
+              scrollRef.current?.scrollTo?.({ y: Math.max(0, inputY.current.venue - 160), animated: true });
+            }, 350);
           }}
         />
 
