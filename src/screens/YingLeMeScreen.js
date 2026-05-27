@@ -1,8 +1,8 @@
 // 赢了么 — 比赛预测
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, ScrollView,
-  StyleSheet, Platform, Alert, Keyboard,
+  StyleSheet, Platform, KeyboardAvoidingView, Alert,
 } from 'react-native';
 import { colors } from '../theme';
 import { api } from '../api';
@@ -81,35 +81,13 @@ export default function YingLeMeScreen({ navigation }) {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [processLog, setProcessLog] = useState([]); // 过程日志
   const scrollRef = useRef(null);
-  const inputRefA = useRef(null);
-  const inputRefB = useRef(null);
-  const inputRefVenue = useRef(null);
 
-  const scrollToInput = useCallback((ref) => {
+  // 弹出软键盘时主动调scrollTo让输入框可见
+  function scrollOnFocus() {
     setTimeout(() => {
-      ref.current?.measureLayout?.(scrollRef.current?.getInnerViewNode?.() || scrollRef.current, (x, y) => {
-        scrollRef.current?.scrollTo?.({ y: Math.max(0, y - 120), animated: true });
-      });
-    }, 400);
-  }, []);
-
-  // 键盘弹出时主动滚动到当前焦点输入框
-  useEffect(() => {
-    const showSub = Keyboard.addListener('keyboardDidShow', () => {
-      const inputs = [inputRefA, inputRefB, inputRefVenue];
-      for (const ref of inputs) {
-        if (ref.current?.isFocused?.()) {
-          setTimeout(() => {
-            ref.current?.measureLayout?.(scrollRef.current?.getInnerViewNode?.() || scrollRef.current, (x, y) => {
-              scrollRef.current?.scrollTo?.({ y: Math.max(0, y - 120), animated: true });
-            });
-          }, 100);
-          break;
-        }
-      }
-    });
-    return () => showSub.remove();
-  }, []);
+      scrollRef.current?.scrollTo?.({ y: 0, animated: false });
+    }, 300);
+  }
 
   useEffect(() => {
     (async () => {
@@ -179,6 +157,7 @@ export default function YingLeMeScreen({ navigation }) {
       }
       setResult(res.result || '⚠️ 预测失败，请重试');
       addLog('✅', '第3步完成：预测已定 ✓');
+    } catch (e) {
       if (e.message && e.message.includes('配额')) {
         Alert.alert('配额不足', e.message, [
           { text: '取消', style: 'cancel' },
@@ -195,13 +174,11 @@ export default function YingLeMeScreen({ navigation }) {
   }
 
   return (
-    <View style={styles.flex}>
+    <KeyboardAvoidingView style={styles.flex} behavior="padding" keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}>
       <ScrollView
         ref={scrollRef}
-        style={styles.flex}
-        contentContainerStyle={styles.container}
+        contentContainerStyle={styles.scrollContent}
         keyboardShouldPersistTaps="handled"
-        automaticallyAdjustKeyboardInsets={true}
       >
         {/* 标题 */}
         <View style={styles.header}>
@@ -213,68 +190,59 @@ export default function YingLeMeScreen({ navigation }) {
         </View>
 
         {/* 主队 */}
-        <Text style={styles.label}>🏆 主队/选手A</Text>
-        <TextInput
-          ref={inputRefA}
-          style={styles.input}
-          value={teamA}
-          onChangeText={setTeamA}
-          placeholder="输入队名或人名"
-          placeholderTextColor={colors.textMuted}
-          onFocus={() => scrollToInput(inputRefA)}
-        />
+        <View style={styles.formCard}>
+          <Text style={styles.label}>🏆 主队/选手A</Text>
+          <TextInput
+            style={styles.input}
+            value={teamA}
+            onChangeText={setTeamA}
+            placeholder="输入队名或人名"
+            placeholderTextColor={colors.textMuted}
+          />
 
-        {/* 客队 */}
-        <Text style={styles.label}>🏆 客队/选手B</Text>
-        <TextInput
-          ref={inputRefB}
-          style={styles.input}
-          value={teamB}
-          onChangeText={setTeamB}
-          placeholder="输入队名或人名"
-          placeholderTextColor={colors.textMuted}
-          onFocus={() => scrollToInput(inputRefB)}
-        />
+          <Text style={styles.label}>🏆 客队/选手B</Text>
+          <TextInput
+            style={styles.input}
+            value={teamB}
+            onChangeText={setTeamB}
+            placeholder="输入队名或人名"
+            placeholderTextColor={colors.textMuted}
+          />
 
-        {/* 比赛时间 */}
-        <Text style={styles.label}>📅 比赛时间（当地时间）</Text>
-        <TouchableOpacity
-          style={styles.input}
-          onPress={() => {
-            setShowDatePicker(true);
-            // 弹窗前先滚动到顶部，避免被弹窗覆盖后看不到上下文
-            setTimeout(() => scrollRef.current?.scrollTo?.({ y: 0, animated: true }), 50);
-          }}
-        >
-          <Text style={[styles.inputText, matchDate ? null : styles.placeholder]}>
-            {matchDate
-              ? `${matchDate} ${matchHour}:${matchMinute}`
-              : '点击选择比赛时间'}
-          </Text>
-        </TouchableOpacity>
+          <Text style={styles.label}>📅 比赛时间（当地时间）</Text>
+          <TouchableOpacity
+            style={styles.input}
+            onPress={() => {
+              setShowDatePicker(true);
+              setTimeout(() => scrollRef.current?.scrollTo?.({ y: 0, animated: true }), 50);
+            }}
+          >
+            <Text style={[styles.inputText, matchDate ? null : styles.placeholder]}>
+              {matchDate
+                ? `${matchDate} ${matchHour}:${matchMinute}`
+                : '点击选择比赛时间'}
+            </Text>
+          </TouchableOpacity>
 
-        {/* 场地 */}
-        <Text style={styles.label}>📍 比赛场地</Text>
-        <TextInput
-          ref={inputRefVenue}
-          style={styles.input}
-          value={venue}
-          onChangeText={setVenue}
-          placeholder="如：北京国家体育场 / 圣地亚哥伯纳乌"
-          placeholderTextColor={colors.textMuted}
-          onFocus={() => scrollToInput(inputRefVenue)}
-        />
+          <Text style={styles.label}>📍 比赛场地</Text>
+          <TextInput
+            style={styles.input}
+            value={venue}
+            onChangeText={setVenue}
+            placeholder="如：北京国家体育场 / 圣地亚哥伯纳乌"
+            placeholderTextColor={colors.textMuted}
+          />
 
-        {/* 预测按钮 */}
-        <TouchableOpacity
-          style={[styles.predictBtn, loading && styles.predictBtnDisabled]}
-          onPress={handlePredict}
-          disabled={loading}
-        >
-          <Text style={styles.predictBtnText}>
-            {loading ? '⏳ 预测中...' : '⚔️ 预测胜负'}
-          </Text>
-        </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.predictBtn, loading && styles.predictBtnDisabled]}
+            onPress={handlePredict}
+            disabled={loading}
+          >
+            <Text style={styles.predictBtnText}>
+              {loading ? '⏳ 预测中...' : '⚔️ 预测胜负'}
+            </Text>
+          </TouchableOpacity>
+        </View>
 
         {/* 过程日志（逐步展示） */}
         {processLog.length > 0 && (
@@ -317,15 +285,13 @@ export default function YingLeMeScreen({ navigation }) {
         visible={showPayment}
         onClose={() => setShowPayment(false)}
       />
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
   flex: { flex: 1, backgroundColor: colors.bg },
-  container: {
-    padding: 16, paddingBottom: 80,
-  },
+  scrollContent: { padding: 16, paddingBottom: 80, flexGrow: 1 },
   header: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
     marginBottom: 24, paddingBottom: 16,
@@ -334,19 +300,24 @@ const styles = StyleSheet.create({
   headerIcon: { fontSize: 32 },
   headerTitle: { fontSize: 20, fontWeight: '700', color: '#43b581' },
   headerSub: { fontSize: 13, color: colors.textDim, marginTop: 2 },
+  formCard: {
+    backgroundColor: colors.card, borderRadius: 14,
+    padding: 20, borderWidth: 1, borderColor: colors.border,
+  },
   label: {
     fontSize: 13, color: colors.textDim, marginBottom: 6, marginTop: 12,
   },
   input: {
-    backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border,
-    borderRadius: 10, paddingHorizontal: 14, paddingVertical: 12,
+    backgroundColor: colors.inputBg, borderRadius: 10,
+    paddingHorizontal: 14, paddingVertical: 12,
     fontSize: 15, color: colors.text,
+    borderWidth: 1, borderColor: colors.border,
   },
   inputText: { fontSize: 15, color: colors.text },
   placeholder: { color: colors.textMuted },
   predictBtn: {
-    backgroundColor: '#43b581', borderRadius: 12, paddingVertical: 14,
-    alignItems: 'center', marginTop: 24,
+    backgroundColor: '#43b581', borderRadius: 10, paddingVertical: 14,
+    alignItems: 'center', marginTop: 20,
   },
   predictBtnDisabled: { opacity: 0.5 },
   predictBtnText: { fontSize: 17, fontWeight: '700', color: '#fff' },
