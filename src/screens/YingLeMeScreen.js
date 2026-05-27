@@ -2,8 +2,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, ScrollView,
-  StyleSheet, Platform, KeyboardAvoidingView, Alert, Keyboard,
-  StatusBar,
+  StyleSheet, Platform, Alert, Keyboard,
 } from 'react-native';
 import { colors } from '../theme';
 import { api } from '../api';
@@ -196,11 +195,7 @@ export default function YingLeMeScreen({ navigation }) {
   }
 
   return (
-      <KeyboardAvoidingView
-        style={styles.flex}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : (StatusBar.currentHeight || 24) + 4}
-      >
+    <View style={styles.flex}>
       <ScrollView
         ref={scrollRef}
         style={styles.flex}
@@ -322,7 +317,7 @@ export default function YingLeMeScreen({ navigation }) {
         visible={showPayment}
         onClose={() => setShowPayment(false)}
       />
-    </KeyboardAvoidingView>
+    </View>
   );
 }
 
