@@ -123,8 +123,7 @@ export default function YingLeMeScreen({ navigation }) {
     clearLog();
 
     try {
-      addLog('⏳', '第1步：天时勘定（真太阳时校准 + 场地坐标检索）...');
-      setLoadText('第1步：天时勘定...');
+      addLog('⏳', '预测中...');
       const d = matchDate;
       const dateTime = d + 'T' + matchHour + ':' + matchMinute;
 
@@ -137,7 +136,7 @@ export default function YingLeMeScreen({ navigation }) {
       });
       console.log('[YingLeMe] 收到响应:', JSON.stringify(res).slice(0, 200));
 
-      addLog('✅', '第1步完成：真太阳时已校准');
+      addLog('✅', '预测完成');
 
       // 查不到信息时的处理
       if (res.warning) {
@@ -162,16 +161,9 @@ export default function YingLeMeScreen({ navigation }) {
         return;
       }
 
-      addLog('⏳', '第2步：推演地理方位...');
-      setLoadText('第2步：推演地理方位...');
-      addLog('✅', '第2步完成');
-
-      addLog('⏳', '第3步：AI天机推演中...');
-      setLoadText('第3步：AI天机推演...');
-
       if (res.result) {
         setResult(res.result);
-        addLog('✅', '第3步完成：预测已定 ✓');
+        addLog('✅', '预测已定 ✓');
       } else {
         setResult('⚠️ 预测失败，请重试');
         addLog('❌', '未获取到预测结果');
@@ -190,7 +182,7 @@ export default function YingLeMeScreen({ navigation }) {
       addLog('❌', `出错：${msg}`);
     }
 
-    // 确保loading关闭（不用finally，直接显式调用）
+    // 确保loading关闭
     setLoading(false);
     loadingRef.current = false;
     setLoadText('');
