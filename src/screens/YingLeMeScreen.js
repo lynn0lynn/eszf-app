@@ -78,6 +78,20 @@ export default function YingLeMeScreen({ navigation }) {
   const [keyboardHeight, setKeyboardHeight] = useState(0);
   const scrollRef = useRef(null);
   const inputY = useRef({ A: 0, B: 0, venue: 0 }); // 存每个输入框的Y坐标
+  const loadingRef = useRef(false); // 同步ref防异步丢失
+
+  // 安全超时：loading 超过60秒自动关闭
+  useEffect(() => {
+    if (loading) {
+      loadingRef.current = true;
+      const timer = setTimeout(() => {
+        loadingRef.current = false;
+        setLoading(false);
+        setLoadText('');
+      }, 60000);
+      return () => { clearTimeout(timer); loadingRef.current = false; };
+    }
+  }, [loading]);
 
   // 监听键盘
   useEffect(() => {
@@ -112,6 +126,7 @@ export default function YingLeMeScreen({ navigation }) {
     }
 
     setLoading(true);
+    loadingRef.current = true;
     setLoadText('正在计算...');
     setResult(null);
     clearLog();
@@ -119,24 +134,28 @@ export default function YingLeMeScreen({ navigation }) {
     try {
       addLog('⏳', '第1步：天时勘定（真太阳时校准 + 场地坐标检索）...');
       setLoadText('第1步：天时勘定...');
-      const dateTime = (matchDate + ' ' + matchHour + ':' + matchMinute).replace(/^(\d{4}-\d{1,2}-\d{1,2}) (\d{1,2}):(\d{1,2})$/, '$1T$2:$3');
+      const d = matchDate;
+      const dateTime = d + 'T' + matchHour + ':' + matchMinute;
 
+      console.log('[YingLeMe] 发起预测请求:', { teamA: teamA.trim(), teamB: teamB.trim(), dateTime, venue: venue.trim() || '未指定' });
       const res = await api.yingLeMe({
         teamA: teamA.trim(),
         teamB: teamB.trim(),
         matchDate: dateTime,
         venue: venue.trim() || '未指定',
       });
+      console.log('[YingLeMe] 收到响应:', JSON.stringify(res).slice(0, 200));
 
       addLog('✅', '第1步完成：真太阳时已校准');
 
-      // 查不到信息时的处理（跟网站同步）
+      // 查不到信息时的处理
       if (res.warning) {
         Alert.alert('提示', res.warning);
         addLog('⚠️', '信息不全，已中断预测');
         setResult(null);
-        setLoadText('');
         setLoading(false);
+        loadingRef.current = false;
+        setLoadText('');
         return;
       }
 
@@ -148,6 +167,7 @@ export default function YingLeMeScreen({ navigation }) {
         ]);
         addLog('❌', '配额不足');
         setLoading(false);
+        loadingRef.current = false;
         return;
       }
 
@@ -166,6 +186,7 @@ export default function YingLeMeScreen({ navigation }) {
         addLog('❌', '未获取到预测结果');
       }
     } catch (e) {
+      console.error('[YingLeMe] 捕获异常:', e);
       const msg = (e && e.message) || String(e) || '未知错误';
       if (msg.includes('配额')) {
         Alert.alert('配额不足', msg, [
@@ -176,10 +197,12 @@ export default function YingLeMeScreen({ navigation }) {
         Alert.alert('预测失败', msg);
       }
       addLog('❌', `出错：${msg}`);
-    } finally {
-      setLoading(false);
-      setLoadText('');
     }
+
+    // 确保loading关闭（不用finally，直接显式调用）
+    setLoading(false);
+    loadingRef.current = false;
+    setLoadText('');
   }
 
   return (
