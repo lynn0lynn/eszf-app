@@ -151,13 +151,16 @@ export default function YingLeMeScreen({ navigation }) {
       addLog('⏳', '第3步：AI天机推演中...');
       setLoadText('第3步：AI天机推演...');
       setResult(res.result || '⚠️ 预测失败，请重试');
-      // 查不到地址/队名信息时弹提示
+      // 查不到地址/队名信息时弹提示，不展示结果
       if (res.warning) {
         Alert.alert('提示', res.warning);
+        addLog('⚠️', '信息不全，已中断预测');
+        setLoadText('');
+        setLoading(false);
+        return;
       }
+      setResult(res.result || '⚠️ 预测失败，请重试');
       addLog('✅', '第3步完成：预测已定 ✓');
-      setLoadText('');
-    } catch (e) {
       if (e.message && e.message.includes('配额')) {
         Alert.alert('配额不足', e.message, [
           { text: '取消', style: 'cancel' },
