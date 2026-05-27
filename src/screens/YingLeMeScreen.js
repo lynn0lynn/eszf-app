@@ -1,8 +1,8 @@
 // 赢了么 — 比赛预测
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, ScrollView,
-  StyleSheet, Platform, KeyboardAvoidingView, Alert,
+  StyleSheet, Platform, KeyboardAvoidingView, Alert, Keyboard,
 } from 'react-native';
 import { colors } from '../theme';
 import { api } from '../api';
@@ -81,6 +81,17 @@ export default function YingLeMeScreen({ navigation }) {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [processLog, setProcessLog] = useState([]); // 过程日志
   const scrollRef = useRef(null);
+  const inputRefA = useRef(null);
+  const inputRefB = useRef(null);
+  const inputRefVenue = useRef(null);
+
+  const scrollToInput = useCallback((ref) => {
+    setTimeout(() => {
+      ref.current?.measureLayout?.(scrollRef.current?.getInnerViewNode?.() || scrollRef.current, (x, y) => {
+        scrollRef.current?.scrollTo?.({ y: Math.max(0, y - 100), animated: true });
+      });
+    }, 350);
+  }, []);
 
   useEffect(() => {
     (async () => {
@@ -161,14 +172,15 @@ export default function YingLeMeScreen({ navigation }) {
   return (
     <KeyboardAvoidingView
       style={styles.flex}
-      behavior={Platform.OS === 'android' ? undefined : 'padding'}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : undefined}
     >
       <ScrollView
         ref={scrollRef}
         style={styles.flex}
         contentContainerStyle={styles.container}
         keyboardShouldPersistTaps="handled"
-        onContentSizeChange={() => scrollRef.current?.scrollToEnd?.({ animated: false })}
+        automaticallyAdjustKeyboardInsets={true}
       >
         {/* 标题 */}
         <View style={styles.header}>
@@ -182,21 +194,25 @@ export default function YingLeMeScreen({ navigation }) {
         {/* 主队 */}
         <Text style={styles.label}>🏆 主队/选手A</Text>
         <TextInput
+          ref={inputRefA}
           style={styles.input}
           value={teamA}
           onChangeText={setTeamA}
           placeholder="输入队名或人名"
           placeholderTextColor={colors.textMuted}
+          onFocus={() => scrollToInput(inputRefA)}
         />
 
         {/* 客队 */}
         <Text style={styles.label}>🏆 客队/选手B</Text>
         <TextInput
+          ref={inputRefB}
           style={styles.input}
           value={teamB}
           onChangeText={setTeamB}
           placeholder="输入队名或人名"
           placeholderTextColor={colors.textMuted}
+          onFocus={() => scrollToInput(inputRefB)}
         />
 
         {/* 比赛时间 */}
@@ -219,11 +235,13 @@ export default function YingLeMeScreen({ navigation }) {
         {/* 场地 */}
         <Text style={styles.label}>📍 比赛场地</Text>
         <TextInput
+          ref={inputRefVenue}
           style={styles.input}
           value={venue}
           onChangeText={setVenue}
           placeholder="如：北京国家体育场 / 圣地亚哥伯纳乌"
           placeholderTextColor={colors.textMuted}
+          onFocus={() => scrollToInput(inputRefVenue)}
         />
 
         {/* 预测按钮 */}
