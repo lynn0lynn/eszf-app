@@ -1,8 +1,8 @@
-// 赢了么 — 比赛预测
+// 赢了么 — 比赛预测（v2 键盘+错误处理修复版）
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, ScrollView,
-  StyleSheet, Platform, KeyboardAvoidingView, Alert, Keyboard,
+  StyleSheet, Platform, Alert, Keyboard,
 } from 'react-native';
 import { colors } from '../theme';
 import { api } from '../api';
@@ -11,7 +11,6 @@ import LoadingModal from '../components/LoadingModal';
 import DateTimePickerModal from '../components/DateTimePickerModal';
 import PaymentModal from '../components/PaymentModal';
 
-// 汉字笔画表（精选常见用字）
 const STROKE_MAP = {
   '零':13,'一':1,'二':2,'三':3,'四':5,'五':4,'六':4,'七':2,'八':2,'九':2,'十':2,
   '东':5,'南':9,'西':6,'北':5,'中':4,'上':3,'下':3,'左':5,'右':5,'前':9,'后':6,
@@ -32,7 +31,6 @@ const STROKE_MAP = {
   '年':6,'月':4,'日':4,'时':7,'间':7,'天':4,'地':6,'生':5,'成':6,'如':6,
   '出':5,'而':6,'多':6,'子':3,'他':5,'她':6,'开':4,'于':3,'名':6,'主':5,
   '文':4,'化':4,'学':8,'法':8,'度':9,'次':6,'比':4,'力':2,'等':12,'路':13,
-  // ⚽ 队名常用补充
   '皇':9,'圣':5,'耳':6,'拜':9,'仁':4,'慕':14,'黑':12,
   '全':6,'京':8,'现':11,'代':5,'湖':12,'勇':9,'士':3,
   '凯':8,'切':4,'刺':8,'热':10,'火':4,'蒙':13,
@@ -40,9 +38,6 @@ const STROKE_MAP = {
   '海':10,'港':12,'安':6,'广':15,'际':13,'雄':12,'鹿':16,
   '黎':15,'竞':20,'物':8,'耳':6,
 };
-
-const TRIGRAM_NAMES = ['','乾☰','兑☱','离☲','震☳','巽☴','坎☵','艮☶','坤☷'];
-const TRIGRAM_WX = ['','金','金','火','木','木','水','土','土'];
 
 function calcStrokeCount(text) {
   if (!text) return 0;
@@ -82,26 +77,13 @@ export default function YingLeMeScreen({ navigation }) {
   const [processLog, setProcessLog] = useState([]);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
   const scrollRef = useRef(null);
-  const inputRefA = useRef(null);
-  const inputRefB = useRef(null);
-  const inputRefVenue = useRef(null);
+  const inputY = useRef({ A: 0, B: 0, venue: 0 }); // 存每个输入框的Y坐标
 
-  // 监听键盘高度
+  // 监听键盘
   useEffect(() => {
-    const showSub = Keyboard.addListener('keyboardDidShow', (e) => {
-      setKeyboardHeight(e.endCoordinates.height);
-    });
-    const hideSub = Keyboard.addListener('keyboardDidHide', () => {
-      setKeyboardHeight(0);
-    });
+    const showSub = Keyboard.addListener('keyboardDidShow', (e) => setKeyboardHeight(e.endCoordinates.height));
+    const hideSub = Keyboard.addListener('keyboardDidHide', () => setKeyboardHeight(0));
     return () => { showSub.remove(); hideSub.remove(); };
-  }, []);
-
-  // 点输入框时主动滚到可见位置
-  const scrollToFocused = useCallback((y) => {
-    setTimeout(() => {
-      scrollRef.current?.scrollTo?.({ y: Math.max(0, y - 140), animated: true });
-    }, 300);
   }, []);
 
   useEffect(() => {
@@ -114,10 +96,7 @@ export default function YingLeMeScreen({ navigation }) {
   function addLog(icon, text) {
     setProcessLog(prev => [...prev, { icon, text, key: Date.now() + Math.random() }]);
   }
-
-  function clearLog() {
-    setProcessLog([]);
-  }
+  function clearLog() { setProcessLog([]); }
 
   async function handlePredict() {
     if (!teamA.trim() || !teamB.trim()) {
@@ -140,7 +119,7 @@ export default function YingLeMeScreen({ navigation }) {
     try {
       addLog('⏳', '第1步：天时勘定（真太阳时校准 + 场地坐标检索）...');
       setLoadText('第1步：天时勘定...');
-      const dateTime = matchDate + ' ' + matchHour + ':' + matchMinute;
+      const dateTime = (matchDate + ' ' + matchHour + ':' + matchMinute).replace(/^(\d{4}-\d{1,2}-\d{1,2}) (\d{1,2}):(\d{1,2})$/, '$1T$2:$3');
 
       const res = await api.yingLeMe({
         teamA: teamA.trim(),
@@ -148,34 +127,55 @@ export default function YingLeMeScreen({ navigation }) {
         matchDate: dateTime,
         venue: venue.trim() || '未指定',
       });
+
       addLog('✅', '第1步完成：真太阳时已校准');
 
-      addLog('⏳', '第2步：推演地理方位（场地+队伍所属地检索）...');
-      setLoadText('第2步：推演地理方位...');
-      addLog('✅', '第2步完成：场地/队伍方位已纳入天时');
-
-      addLog('⏳', '第3步：AI天机推演中...');
-      setLoadText('第3步：AI天机推演...');
-
+      // 查不到信息时的处理（跟网站同步）
       if (res.warning) {
         Alert.alert('提示', res.warning);
         addLog('⚠️', '信息不全，已中断预测');
+        setResult(null);
         setLoadText('');
         setLoading(false);
         return;
       }
-      setResult(res.result || '⚠️ 预测失败，请重试');
-      addLog('✅', '第3步完成：预测已定 ✓');
+
+      // 配额不足
+      if (res.error === 'quota_exhausted') {
+        Alert.alert('配额不足', res.message || '次数已用完，请先充值再预测～', [
+          { text: '取消', style: 'cancel' },
+          { text: '去充值', onPress: () => setShowPayment(true) },
+        ]);
+        addLog('❌', '配额不足');
+        setLoading(false);
+        return;
+      }
+
+      addLog('⏳', '第2步：推演地理方位...');
+      setLoadText('第2步：推演地理方位...');
+      addLog('✅', '第2步完成');
+
+      addLog('⏳', '第3步：AI天机推演中...');
+      setLoadText('第3步：AI天机推演...');
+
+      if (res.result) {
+        setResult(res.result);
+        addLog('✅', '第3步完成：预测已定 ✓');
+      } else {
+        setResult('⚠️ 预测失败，请重试');
+        addLog('❌', '未获取到预测结果');
+      }
     } catch (e) {
-      if (e.message && e.message.includes('配额')) {
-        Alert.alert('配额不足', e.message, [
+      const msg = (e && e.message) || String(e) || '未知错误';
+      if (msg.includes('配额')) {
+        Alert.alert('配额不足', msg, [
           { text: '取消', style: 'cancel' },
           { text: '去充值', onPress: () => setShowPayment(true) },
         ]);
       } else {
-        Alert.alert('预测失败', e.message || '请稍后重试');
+        Alert.alert('预测失败', msg);
       }
-      addLog('❌', `出错：${e.message}`);
+      addLog('❌', `出错：${msg}`);
     } finally {
       setLoading(false);
       setLoadText('');
@@ -183,14 +183,11 @@ export default function YingLeMeScreen({ navigation }) {
   }
 
   return (
-    <KeyboardAvoidingView
-      style={styles.flex}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-    >
+    <View style={styles.flex}>
       <ScrollView
         ref={scrollRef}
         style={styles.flex}
-        contentContainerStyle={[styles.scrollContent, { paddingBottom: keyboardHeight + 120 }]}
+        contentContainerStyle={{ padding: 16, paddingBottom: keyboardHeight + 80 }}
         keyboardShouldPersistTaps="handled"
       >
         {/* 标题 */}
@@ -205,47 +202,58 @@ export default function YingLeMeScreen({ navigation }) {
         {/* 主队 */}
         <Text style={styles.label}>🏆 主队/选手A</Text>
         <TextInput
-          ref={inputRefA}
           style={styles.input}
           value={teamA}
           onChangeText={setTeamA}
           placeholder="输入队名或人名"
           placeholderTextColor={colors.textMuted}
-          onFocus={() => scrollToFocused(0)} // 第1个输入框
+          onLayout={e => { inputY.current.A = e.nativeEvent.layout.y; }}
+          onFocus={() => {
+            setTimeout(() => {
+              scrollRef.current?.scrollTo?.({ y: Math.max(0, inputY.current.A - 160), animated: true });
+            }, 350);
+          }}
         />
 
+        {/* 客队 */}
         <Text style={styles.label}>🏆 客队/选手B</Text>
         <TextInput
-          ref={inputRefB}
           style={styles.input}
           value={teamB}
           onChangeText={setTeamB}
           placeholder="输入队名或人名"
           placeholderTextColor={colors.textMuted}
-          onFocus={() => scrollToFocused(0)}
+          onLayout={e => { inputY.current.B = e.nativeEvent.layout.y; }}
+          onFocus={() => {
+            setTimeout(() => {
+              scrollRef.current?.scrollTo?.({ y: Math.max(0, inputY.current.B - 160), animated: true });
+            }, 350);
+          }}
         />
 
+        {/* 比赛时间 */}
         <Text style={styles.label}>📅 比赛时间（当地时间）</Text>
         <TouchableOpacity
           style={styles.input}
           onPress={() => setShowDatePicker(true)}
         >
           <Text style={[styles.inputText, matchDate ? null : styles.placeholder]}>
-            {matchDate
-              ? `${matchDate} ${matchHour}:${matchMinute}`
-              : '点击选择比赛时间'}
+            {matchDate ? `${matchDate} ${matchHour}:${matchMinute}` : '点击选择比赛时间'}
           </Text>
         </TouchableOpacity>
 
+        {/* 场地 */}
         <Text style={styles.label}>📍 比赛场地</Text>
         <TextInput
-          ref={inputRefVenue}
           style={styles.input}
           value={venue}
           onChangeText={setVenue}
           placeholder="如：北京国家体育场 / 圣地亚哥伯纳乌"
           placeholderTextColor={colors.textMuted}
-          onFocus={() => scrollToFocused(0)}
+          onLayout={e => { inputY.current.venue = e.nativeEvent.layout.y; }}
+          onFocus={() => {
+            Keyboard.dismiss(); // 直接把键盘收回去，场地不是必须的
+          }}
         />
 
         <TouchableOpacity
@@ -258,13 +266,11 @@ export default function YingLeMeScreen({ navigation }) {
           </Text>
         </TouchableOpacity>
 
-        {/* 过程日志（逐步展示） */}
+        {/* 日志 */}
         {processLog.length > 0 && (
           <View style={styles.logCard}>
             {processLog.map((log, i) => (
-              <Text key={log.key || i} style={styles.logLine}>
-                {log.icon} {log.text}
-              </Text>
+              <Text key={log.key || i} style={styles.logLine}>{log.icon} {log.text}</Text>
             ))}
           </View>
         )}
@@ -277,7 +283,6 @@ export default function YingLeMeScreen({ navigation }) {
         )}
       </ScrollView>
 
-      {/* 日期选择器 */}
       <DateTimePickerModal
         visible={showDatePicker}
         onClose={() => setShowDatePicker(false)}
@@ -290,22 +295,14 @@ export default function YingLeMeScreen({ navigation }) {
         initialHour={matchHour}
         initialMinute={matchMinute}
       />
-
-      {/* 加载弹窗 */}
       <LoadingModal visible={loading} text={loadText} />
-
-      {/* 充值弹窗 */}
-      <PaymentModal
-        visible={showPayment}
-        onClose={() => setShowPayment(false)}
-      />
-    </KeyboardAvoidingView>
+      <PaymentModal visible={showPayment} onClose={() => setShowPayment(false)} />
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   flex: { flex: 1, backgroundColor: colors.bg },
-  scrollContent: { padding: 16, paddingBottom: 40, flexGrow: 1 },
   header: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
     marginBottom: 24, paddingBottom: 16,
@@ -314,9 +311,7 @@ const styles = StyleSheet.create({
   headerIcon: { fontSize: 32 },
   headerTitle: { fontSize: 20, fontWeight: '700', color: '#43b581' },
   headerSub: { fontSize: 13, color: colors.textDim, marginTop: 2 },
-  label: {
-    fontSize: 13, color: colors.textDim, marginBottom: 6, marginTop: 12,
-  },
+  label: { fontSize: 13, color: colors.textDim, marginBottom: 6, marginTop: 12 },
   input: {
     backgroundColor: colors.inputBg, borderRadius: 10,
     paddingHorizontal: 14, paddingVertical: 12,
@@ -336,13 +331,12 @@ const styles = StyleSheet.create({
     borderRadius: 10, padding: 12, marginTop: 16,
   },
   logLine: {
-    fontSize: 12, color: '#8ab4f8', marginBottom: 4, fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+    fontSize: 12, color: '#8ab4f8', marginBottom: 4,
+    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
   },
   resultCard: {
     backgroundColor: colors.card, borderWidth: 1, borderColor: '#43b58144',
     borderRadius: 12, padding: 16, marginTop: 16,
   },
-  resultText: {
-    fontSize: 14, color: '#ccc', lineHeight: 22,
-  },
+  resultText: { fontSize: 14, color: '#ccc', lineHeight: 22 },
 });
