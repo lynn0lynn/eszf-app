@@ -1,8 +1,8 @@
 // 赢了么 — 比赛预测（v2 键盘+错误处理修复版）
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, ScrollView,
-  StyleSheet, Platform, Alert, Keyboard,
+  StyleSheet, Platform, Alert, KeyboardAvoidingView,
 } from 'react-native';
 import { colors } from '../theme';
 import { api } from '../api';
@@ -75,9 +75,7 @@ export default function YingLeMeScreen({ navigation }) {
   const [showPayment, setShowPayment] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [processLog, setProcessLog] = useState([]);
-  const [keyboardHeight, setKeyboardHeight] = useState(0);
   const scrollRef = useRef(null);
-  const inputY = useRef({ A: 0, B: 0, venue: 0 }); // 存每个输入框的Y坐标
   const loadingRef = useRef(false); // 同步ref防异步丢失
 
   // 安全超时：loading 超过60秒自动关闭
@@ -92,13 +90,6 @@ export default function YingLeMeScreen({ navigation }) {
       return () => { clearTimeout(timer); loadingRef.current = false; };
     }
   }, [loading]);
-
-  // 监听键盘
-  useEffect(() => {
-    const showSub = Keyboard.addListener('keyboardDidShow', (e) => setKeyboardHeight(e.endCoordinates.height));
-    const hideSub = Keyboard.addListener('keyboardDidHide', () => setKeyboardHeight(0));
-    return () => { showSub.remove(); hideSub.remove(); };
-  }, []);
 
   useEffect(() => {
     (async () => {
@@ -206,11 +197,11 @@ export default function YingLeMeScreen({ navigation }) {
   }
 
   return (
-    <View style={styles.flex}>
+    <KeyboardAvoidingView style={styles.flex} behavior="padding" keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}>
       <ScrollView
         ref={scrollRef}
         style={styles.flex}
-        contentContainerStyle={{ padding: 16, paddingBottom: keyboardHeight + 80 }}
+        contentContainerStyle={{ padding: 16 }}
         keyboardShouldPersistTaps="handled"
       >
         {/* 标题 */}
@@ -230,11 +221,8 @@ export default function YingLeMeScreen({ navigation }) {
           onChangeText={setTeamA}
           placeholder="输入队名或人名"
           placeholderTextColor={colors.textMuted}
-          onLayout={e => { inputY.current.A = e.nativeEvent.layout.y; }}
           onFocus={() => {
-            setTimeout(() => {
-              scrollRef.current?.scrollTo?.({ y: Math.max(0, inputY.current.A - 160), animated: true });
-            }, 350);
+            scrollRef.current?.scrollTo?.({ y: 0, animated: true });
           }}
         />
 
@@ -246,11 +234,8 @@ export default function YingLeMeScreen({ navigation }) {
           onChangeText={setTeamB}
           placeholder="输入队名或人名"
           placeholderTextColor={colors.textMuted}
-          onLayout={e => { inputY.current.B = e.nativeEvent.layout.y; }}
           onFocus={() => {
-            setTimeout(() => {
-              scrollRef.current?.scrollTo?.({ y: Math.max(0, inputY.current.B - 160), animated: true });
-            }, 350);
+            scrollRef.current?.scrollTo?.({ y: 0, animated: true });
           }}
         />
 
@@ -273,11 +258,8 @@ export default function YingLeMeScreen({ navigation }) {
           onChangeText={setVenue}
           placeholder="如：北京国家体育场 / 圣地亚哥伯纳乌"
           placeholderTextColor={colors.textMuted}
-          onLayout={e => { inputY.current.venue = e.nativeEvent.layout.y; }}
           onFocus={() => {
-            setTimeout(() => {
-              scrollRef.current?.scrollTo?.({ y: Math.max(0, inputY.current.venue - 160), animated: true });
-            }, 350);
+            scrollRef.current?.scrollTo?.({ y: 0, animated: true });
           }}
         />
 
@@ -322,7 +304,7 @@ export default function YingLeMeScreen({ navigation }) {
       />
       <LoadingModal visible={loading} text={loadText} />
       <PaymentModal visible={showPayment} onClose={() => setShowPayment(false)} />
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 
