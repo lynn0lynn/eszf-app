@@ -3,6 +3,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, ScrollView,
   StyleSheet, Platform, KeyboardAvoidingView, Alert, Keyboard,
+  StatusBar,
 } from 'react-native';
 import { colors } from '../theme';
 import { api } from '../api';
@@ -88,9 +89,27 @@ export default function YingLeMeScreen({ navigation }) {
   const scrollToInput = useCallback((ref) => {
     setTimeout(() => {
       ref.current?.measureLayout?.(scrollRef.current?.getInnerViewNode?.() || scrollRef.current, (x, y) => {
-        scrollRef.current?.scrollTo?.({ y: Math.max(0, y - 100), animated: true });
+        scrollRef.current?.scrollTo?.({ y: Math.max(0, y - 120), animated: true });
       });
-    }, 350);
+    }, 400);
+  }, []);
+
+  // 键盘弹出时主动滚动到当前焦点输入框
+  useEffect(() => {
+    const showSub = Keyboard.addListener('keyboardDidShow', () => {
+      const inputs = [inputRefA, inputRefB, inputRefVenue];
+      for (const ref of inputs) {
+        if (ref.current?.isFocused?.()) {
+          setTimeout(() => {
+            ref.current?.measureLayout?.(scrollRef.current?.getInnerViewNode?.() || scrollRef.current, (x, y) => {
+              scrollRef.current?.scrollTo?.({ y: Math.max(0, y - 120), animated: true });
+            });
+          }, 100);
+          break;
+        }
+      }
+    });
+    return () => showSub.remove();
   }, []);
 
   useEffect(() => {
@@ -177,11 +196,11 @@ export default function YingLeMeScreen({ navigation }) {
   }
 
   return (
-    <KeyboardAvoidingView
-      style={styles.flex}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : undefined}
-    >
+      <KeyboardAvoidingView
+        style={styles.flex}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : (StatusBar.currentHeight || 24) + 4}
+      >
       <ScrollView
         ref={scrollRef}
         style={styles.flex}
